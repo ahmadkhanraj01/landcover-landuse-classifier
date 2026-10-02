@@ -1,0 +1,76 @@
+Level_1_Code,Level_1_Description,Level_2_Code,Level_2_Description,Level_3_Code,Level_3_Description
+A,Artificial land,A10,Roofed built-up areas,A11,Buildings with 1 to 3 floors
+A,Artificial land,A10,Roofed built-up areas,A12,Buildings with more than 3 floors
+A,Artificial land,A10,Roofed built-up areas,A13,Greenhouses
+A,Artificial land,A20,Artificial non-built up areas,A21,Non built-up area features
+A,Artificial land,A20,Artificial non-built up areas,A22,Non built-up linear features
+A,Artificial land,A30,Other artificial areas,A30,Other artificial areas
+B,Cropland,B10,Cereals,B11,Common wheat
+B,Cropland,B10,Cereals,B12,Durum wheat
+B,Cropland,B10,Cereals,B13,Barley
+B,Cropland,B10,Cereals,B14,Rye
+B,Cropland,B10,Cereals,B15,Oats
+B,Cropland,B10,Cereals,B16,Maize
+B,Cropland,B10,Cereals,B17,Rice
+B,Cropland,B10,Cereals,B18,Triticale
+B,Cropland,B10,Cereals,B19,Other cereals
+B,Cropland,B20,Root crops,B21,Potatoes
+B,Cropland,B20,Root crops,B22,Sugar beet
+B,Cropland,B20,Root crops,B23,Other root crops
+B,Cropland,B30,Non-permanent industrial crops,B31,Sunflower
+B,Cropland,B30,Non-permanent industrial crops,B32,Rape and turnip rape
+B,Cropland,B30,Non-permanent industrial crops,B33,Soya
+B,Cropland,B30,Non-permanent industrial crops,B34,Cotton
+B,Cropland,B30,Non-permanent industrial crops,B35,Other fibre and oleaginous crops
+B,Cropland,B30,Non-permanent industrial crops,B36,Tobacco
+B,Cropland,B30,Non-permanent industrial crops,B37,Other non-permanent industrial crops
+B,Cropland,B40,"Dry pulses, vegetables and flowers",B41,Dry pulses
+B,Cropland,B40,"Dry pulses, vegetables and flowers",B42,Tomatoes
+B,Cropland,B40,"Dry pulses, vegetables and flowers",B43,Other fresh vegetables
+B,Cropland,B40,"Dry pulses, vegetables and flowers",B44,Floriculture and ornamental plants
+B,Cropland,B40,"Dry pulses, vegetables and flowers",B45,Strawberries
+B,Cropland,B50,Fodder crops,B51,Clovers
+B,Cropland,B50,Fodder crops,B52,Lucerne
+B,Cropland,B50,Fodder crops,B53,Other leguminous and mixtures for fodder
+B,Cropland,B50,Fodder crops,B54,Mix of cereals
+B,Cropland,B50,Fodder crops,B55,Temporary grassland
+B,Cropland,B70,Permanent crops: fruit trees,B71,Apple fruit
+B,Cropland,B70,Permanent crops: fruit trees,B72,Pear fruit
+B,Cropland,B70,Permanent crops: fruit trees,B73,Cherry fruit
+B,Cropland,B70,Permanent crops: fruit trees,B74,Nuts trees
+B,Cropland,B70,Permanent crops: fruit trees,B75,Other fruit trees and berries
+B,Cropland,B70,Permanent crops: fruit trees,B76,Oranges
+B,Cropland,B70,Permanent crops: fruit trees,B77,Other citrus fruit
+B,Cropland,B80,Other permanent crops,B81,Olive groves
+B,Cropland,B80,Other permanent crops,B82,Vineyards
+B,Cropland,B80,Other permanent crops,B83,Nurseries
+B,Cropland,B80,Other permanent crops,B84,Permanent industrial crops
+B,Cropland,Bx0,Cropland (photo-interpretation only),Bx1,Arable land (only PI)
+B,Cropland,Bx0,Cropland (photo-interpretation only),Bx2,Permanent crops (only PI)
+C,Woodland,C10,Broadleaved woodland,C10,Broadleaved woodland
+C,Woodland,C20,Coniferous woodland,C21,Spruce dominated coniferous woodland
+C,Woodland,C20,Coniferous woodland,C22,Pine dominated coniferous woodland
+C,Woodland,C20,Coniferous woodland,C23,Other coniferous woodland
+C,Woodland,C30,Mixed woodland,C31,Spruce dominated mixed woodland
+C,Woodland,C30,Mixed woodland,C32,Pine dominated mixed woodland
+C,Woodland,C30,Mixed woodland,C33,Other mixed woodland
+D,Shrubland,D10,Shrubland with sparse tree cover,D10,Shrubland with sparse tree cover
+D,Shrubland,D20,Shrubland without tree cover,D20,Shrubland without tree cover
+E,Grassland,E10,Grassland with sparse tree/shrub cover,E10,Grassland with sparse tree/shrub cover
+E,Grassland,E20,Grassland without tree/shrub cover,E20,Grassland without tree/shrub cover
+E,Grassland,E30,Spontaneously re-vegetated surfaces,E30,Spontaneously re-vegetated surfaces
+F,Bareland,F10,Rocks and stones,F10,Rocks and stones
+F,Bareland,F20,Sand,F20,Sand
+F,Bareland,F30,Lichens and moss,F30,Lichens and Moss
+F,Bareland,F40,Other bare soil,F40,Other bare soil
+G,Water,G10,Inland water bodies,G11,Inland fresh water bodies
+G,Water,G10,Inland water bodies,G12,Inland salty water bodies
+G,Water,G20,Inland running water,G21,Inland fresh running water
+G,Water,G20,Inland running water,G22,Inland salty running water
+G,Water,G30,Transitional water bodies,G30,Transitional water bodies
+G,Water,G40,Sea and ocean,G40,Sea and ocean
+H,Wetlands,H10,Inland wetlands,H11,Inland marshes
+H,Wetlands,H10,Inland wetlands,H12,Peatbogs
+H,Wetlands,H20,Coastal wetlands,H21,Salt marshes
+H,Wetlands,H20,Coastal wetlands,H22,Salines
+H,Wetlands,H20,Coastal wetlands,H23,Intertidal flats

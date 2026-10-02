@@ -1,0 +1,14 @@
+# Secrets: contains the DB password (use example.env as the template)
+.env
+
+# Local environment
+.venv/
+__pycache__/
+*.pyc
+
+# Large / local data: recreate with "Fetch from database" and setup
+data/
+models/
+runs/
+output/
+*.zip

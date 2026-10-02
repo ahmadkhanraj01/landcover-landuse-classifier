@@ -1,0 +1,33 @@
+Level_1_Code,Level_1_Description,Level_2_Code,Level_2_Description,Level_3_Code,Level_3_Description
+U1,Primary sector,U11,Agriculture,U111,Agriculture (excluding fallow land and kitchen gardens)
+U1,Primary sector,U11,Agriculture,U112,Fallow land
+U1,Primary sector,U11,Agriculture,U113,Kitchen gardens
+U1,Primary sector,U12,Forestry,U120,Forestry
+U1,Primary sector,U13,Fishing,U130,Fishing
+U1,Primary sector,U14,Mining and quarrying,U140,Mining and quarrying
+U1,Primary sector,U15,Other primary production,U150,Other primary production
+U2,Secondary sector,U21,Energy production,U210,Energy production
+U2,Secondary sector,U22,Industry and manufacturing,U220,Industry and manufacturing
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U311,Railway transport
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U312,Road transport
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U313,Water transport
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U314,Air transport
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U315,Transport via pipelines
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U316,Telecommunications
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U317,Logistics and storage
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U318,Protection infrastructures
+U3,Tertiary sector,U31,"Transport, communication networks, storage, protective works",U319,"Electricity, gas and thermal power distribution"
+U3,Tertiary sector,U32,Water and waste treatment,U321,Water supply and treatment
+U3,Tertiary sector,U32,Water and waste treatment,U322,Waste treatment
+U3,Tertiary sector,U33,Construction,U330,Construction
+U3,Tertiary sector,U34,"Commerce, finance, business",U341,Commerce
+U3,Tertiary sector,U34,"Commerce, finance, business",U342,"Financial, professional and information services"
+U3,Tertiary sector,U35,Community services,U350,Community services
+U3,Tertiary sector,U36,"Recreation, leisure, sport",U361,"Amenities, museum, leisure (e.g. parks, botanical gardens)"
+U3,Tertiary sector,U36,"Recreation, leisure, sport",U362,Sport
+U3,Tertiary sector,U37,Residential,U370,Residential
+U4,Unused,U41,Abandoned areas,U411,Abandoned industrial areas
+U4,Unused,U41,Abandoned areas,U413,Abandoned transport areas
+U4,Unused,U41,Abandoned areas,U414,Abandoned residential areas
+U4,Unused,U41,Abandoned areas,U415,Other abandoned areas
+U4,Unused,U42,Semi-natural and natural areas not in use,U420,Semi-natural and natural areas not in use
