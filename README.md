@@ -32,7 +32,7 @@ All results are written as **CSV files**. It comes with a web UI (Streamlit) and
 | | Requirement |
 |---|---|
 | Python | 3.10–3.12 |
-| Mistral API key | from https://console.mistral.ai/api-keys (paid usage; about $0.55 per 1,000 records for both taxonomies) |
+| Mistral API key | from https://console.mistral.ai/api-keys (paid usage; about $0.37 per 1,000 records for both taxonomies, see [9](#9-speed-and-cost)) |
 | Network | for setup, for the Mistral API and for fetching from the DB |
 | Disk | < 1 GB |
 
@@ -120,8 +120,14 @@ can leave the database settings empty and use the snapshot.
 MISTRAL_API_KEY=your-key
 # optional
 # MISTRAL_MODEL=mistral-small-latest
-# MISTRAL_CONCURRENCY=8        # parallel requests; lower it on rate-limit errors
+# MISTRAL_CONCURRENCY=8        # parallel requests
+# MISTRAL_PACK=5               # records scored per API call (1 = one record per call)
+# MISTRAL_RPM=90               # client-side limits per minute, used until the API reports yours
+# MISTRAL_TPM=90000
 ```
+
+The classifier reads your account's rate limits from the API and stays below them (waiting instead
+of triggering HTTP 429 errors).
 
 ---
 
@@ -136,7 +142,7 @@ Classify 5 random records end to end (needs the snapshot; see step 5.1 and your 
 The test run prints lines like:
 
 ```
-[15:47:24] Mistral API · mistral-small-latest · 8 parallel
+[15:47:24] Mistral API · mistral-small-latest · 5 records/call · 8 parallel
 [15:47:31] 5/5  0.71 rec/s  $0.008
 finished
 ```
@@ -154,6 +160,16 @@ Start it:
 | `./run_ui.sh` | `run_ui.bat` |
 
 Then open **http://localhost:8501** in your browser. To use another port: `PORT=8502 ./run_ui.sh`.
+
+**Simple UI**: start a run, watch a progress bar and see a results table (default thresholds, CSV
+download). It has no label editing or threshold sliders:
+
+```bash
+.venv/bin/python -m streamlit run simple_app.py
+```
+
+(There is no `.venv/bin/streamlit` executable; use `python -m streamlit`.) Both UIs read and write
+the same `runs/` folder.
 
 ### 5.1 Data tab
 
@@ -264,16 +280,38 @@ On the current PC, build a zip next to the project folder:
 
 ## 9. Speed and cost
 
-Speed depends on `MISTRAL_CONCURRENCY` (default 8 parallel requests) and your Mistral rate limit;
-HTTP 429 and 5xx answers are retried with backoff. Each record needs about 8 calls for both
-taxonomies at depth 3 (one per taxonomy for level 1, plus one per branch above the explore
-threshold). Estimated cost with `mistral-small-latest` ($0.15 / $0.60 per million input / output
-tokens): about **$0.55 per 1,000 records** measured on 20 records, so about $14 for 25k records. Depth 1 is about 3× cheaper.
-Run a small sample first: the Run tab then shows the measured time and cost, and every run shows its
-tokens and cost so far. Prices are set in `.env` (`MISTRAL_PRICE_INPUT/OUTPUT`) and only affect the estimate.
+**The Mistral account limits set the speed.** The API reports them in its response headers; the
+account used for testing had **100 requests/min and 100,000 tokens/min**. More parallel requests do
+not help, they only cause 429 retries. A higher Mistral tier is the biggest speed-up and needs no
+code change.
 
-Mistral returns a self-reported confidence (0–1) per class, not a calibrated probability, so
-re-tune the thresholds in the Results tab after a first sample.
+Each record needs about 3.75 scorings for both taxonomies at depth 3 (level 1 per taxonomy, plus one
+per branch above the explore threshold). With `MISTRAL_PACK=5`, five records share one request, which
+sends the class list once per five records.
+
+Measured on the same 100 random records (`mistral-small-latest`, $0.15 / $0.60 per million input /
+output tokens):
+
+| | 1 record per call | 5 records per call (default) |
+|---|---|---|
+| Speed | 0.40 records/s | 0.81 records/s |
+| Requests / tokens | about 418 / 360k | 93 / 191k |
+| Cost | $0.062 | $0.037 |
+| All 25,129 records | about $15, 16 h | about **$9.3, 8.5 h** |
+
+Packing changes more labels than normal run-to-run variation: two single-record runs agreed 96% on
+land cover level 1 (90% on levels 2–3), a single run and the packed run 84% (71–73%). The differences
+were mostly borderline cases in both directions, and the overall label counts were the same. Set
+`MISTRAL_PACK=1` for the most stable labels, at about twice the time and 1.4× the cost.
+If a packed call fails or returns invalid JSON, it is redone one record at a time.
+
+Depth 1 is about 3× cheaper. Run a small sample first: the Run tab then shows the measured time and
+cost, and every run shows its tokens and cost so far. Prices are set in `.env`
+(`MISTRAL_PRICE_INPUT/OUTPUT`) and only affect the estimate.
+
+Mistral returns a self-reported confidence (0–1) per class, not a calibrated probability, and results
+vary slightly between identical runs even at `temperature=0`. Re-tune the thresholds in the Results
+tab after a first sample. See `mistral_migration.md` for the full test notes.
 
 ---
 
@@ -282,8 +320,10 @@ re-tune the thresholds in the Results tab after a first sample.
 | Problem | Fix |
 |---|---|
 | `MISTRAL_API_KEY is not set` / HTTP 401 | Put a valid key in `.env` |
-| HTTP 429 (rate limit) | Retried automatically; lower `MISTRAL_CONCURRENCY` if it keeps happening |
+| Run is slow | The Mistral rate limit is the cap, see [9](#9-speed-and-cost). Raise the tier, or keep `MISTRAL_PACK=5` |
+| HTTP 429 (rate limit) | Retried automatically; if it keeps happening, lower `MISTRAL_RPM` / `MISTRAL_TPM` |
 | "Fetch from database" fails | Check the `DB_*` values in `.env`, the VPN/firewall, and `DB_SSLMODE` |
+| `streamlit: No such file` | Use `.venv/bin/python -m streamlit run ...` |
 | Port 8501 already in use | `PORT=8502 ./run_ui.sh`, or stop the other Streamlit instance |
 | Run shows `interrupted` | The process stopped (PC restarted, killed). Click **Resume**; finished records are kept |
 | Many wrong labels | Raise the Level 1 threshold (Results tab) and improve the hints (Labels tab) |
@@ -295,7 +335,8 @@ Each run's log is in `runs/<run_id>/log.txt`.
 ## 11. Project structure
 
 ```
-app.py                     Streamlit UI
+app.py                     Streamlit UI (labels, runs, results, export)
+simple_app.py              simple Streamlit UI (start, progress bar, results table)
 landclass/
   config.py                paths and defaults
   data.py                  read-only DB fetch → data/records_snapshot.parquet
@@ -316,4 +357,5 @@ runs/<run_id>/             per run: settings, probabilities, progress, log
 output/<run_id>/           exported CSV files
 ```
 
-For background on how this approach was chosen, see `classification_options.md`.
+For background on how this approach was chosen, see `classification_options.md`; for the move from
+GLiNER to Mistral and the test results, see `mistral_migration.md`.
