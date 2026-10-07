@@ -11,7 +11,7 @@ import streamlit as st
 
 from landclass import runner
 from landclass.config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL,
-                              DEFAULT_THRESHOLDS, TAXONOMIES)
+                              DEFAULT_THRESHOLDS, MISTRAL_API_KEY, MISTRAL_MODEL, TAXONOMIES)
 from landclass.data import fetch_snapshot, load_snapshot, snapshot_meta
 from landclass.export import (export, load_scores, long_table, run_records, run_taxonomy,
                               select, wide_table)
@@ -30,12 +30,12 @@ def bar_color() -> str:
 
 
 def measured_speed(taxes: list[str], max_level: int):
-    """Records/s and hardware of the latest run with the same taxonomies and depth."""
+    """Records/s and cost per record of the latest run with the same taxonomies and depth."""
     for run_dir in runner.list_runs():
         cfg, prog = runner.read_run(run_dir), runner.read_progress(run_dir)
         if (sorted(cfg["taxonomies"]) == sorted(taxes) and cfg.get("max_level", 3) == max_level
-                and prog.get("rate") and prog.get("hardware")):
-            return prog["rate"], prog["hardware"].split(" · ")[0]
+                and prog.get("rate") and prog.get("cost_usd") and prog.get("done")):
+            return prog["rate"], prog["cost_usd"] / prog["done"]
     return None
 
 
@@ -47,7 +47,8 @@ def fmt_eta(seconds) -> str:
 
 
 st.title("Land cover & land use classifier")
-st.caption("GLiNER2.5-Decide, run locally. The database is only read; results are saved as CSV files.")
+st.caption(f"Mistral API ({MISTRAL_MODEL}): record titles and abstracts are sent to Mistral. "
+           "The database is only read; results are saved as CSV files.")
 
 tab_data, tab_labels, tab_run, tab_results = st.tabs(
     ["1 · Data", "2 · Labels", "3 · Run", "4 · Results & export"])
@@ -111,18 +112,18 @@ with tab_labels:
 
     st.divider()
     st.subheader("Try a text")
-    st.caption("Runs on the CPU so it doesn't compete with a background run for GPU memory "
-               "(about 10–30 s). Uses the saved labels.")
+    st.caption("Sends the text to the Mistral API (a few seconds, a fraction of a cent). Uses the saved labels.")
     text = st.text_area("Title and abstract", height=150,
                         placeholder="Paste a title and abstract to see how it is classified…")
     if st.button("Classify text", disabled=not text.strip()):
-        @st.cache_resource(show_spinner=False)
-        def cpu_engine():
-            from landclass.engine import Engine
-            return Engine(device="cpu", batch_size=4)
+        from landclass.engine import Engine, MistralError
 
-        with st.spinner("Loading model and classifying…"):
-            eng = cpu_engine()
+        try:
+            eng = Engine()
+        except MistralError as e:
+            st.error(str(e))
+            st.stop()
+        with st.spinner("Classifying…"):
             cols = st.columns(len(TAXONOMIES))
             for col, key in zip(cols, TAXONOMIES):
                 tax = build_taxonomy(key)
@@ -148,31 +149,33 @@ with tab_run:
                                    format_func=TAX_NAMES.get)
             mode = c2.radio("Records", ["sample", "first", "all"], horizontal=True,
                             format_func={"sample": "Random sample", "first": "First N", "all": f"All ({len(snap):,})"}.get)
-            c3, c4, c5, c6 = st.columns(4)
+            c3, c4, c5 = st.columns(3)
             n = c3.number_input("N (for sample / first N)", 1, len(snap), 10)
             max_level = c4.selectbox("Max depth", [1, 2, 3], index=DEFAULT_MAX_LEVEL - 1,
-                                     help="Level 1 only is about 3× faster than the full cascade")
+                                     help="Level 1 only is about 3× cheaper and faster than the full cascade")
             explore = c5.slider("Explore threshold", 0.1, 0.9, DEFAULT_EXPLORE_THRESHOLD, 0.05,
                                 help="Sub-classes are only scored under classes at or above this probability. "
                                      "Lower = more detail but slower.")
-            batch = c6.number_input("Batch size (0 = auto)", 0, 128, 0,
-                                    help="Auto picks from GPU memory; halved automatically if the GPU runs out of memory")
             n_rec = len(snap) if mode == "all" else n
             speed = measured_speed(taxes, max_level)
             if speed:
-                rate, hw = speed
-                st.caption(f"Estimated time: **{fmt_eta(n_rec / rate)}** "
-                           f"(measured {rate:.2f} records/s on {hw} in an earlier run with these settings)")
+                rate, per_rec = speed
+                st.caption(f"Estimated time: **{fmt_eta(n_rec / rate)}**, cost: **≈ ${n_rec * per_rec:,.2f}** "
+                           f"(measured {rate:.2f} records/s, ${per_rec * 1000:.2f} per 1,000 records "
+                           "in an earlier run with these settings)")
             else:
-                st.caption("No speed measured yet for these settings on this machine: run a small sample first "
-                           "to get a time estimate.")
+                st.caption("No measurement yet for these settings: run a small sample first to get a time "
+                           "and cost estimate. Rough guide for both taxonomies at depth 3: "
+                           "$0.55 per 1,000 records with Mistral Small.")
+            if not MISTRAL_API_KEY:
+                st.warning("MISTRAL_API_KEY is not set in .env: a run will fail.")
             if st.form_submit_button("Start run", type="primary", disabled=not taxes):
-                active = [r for r in runner.list_runs() if runner.read_progress(r)["status"] in ("running", "loading model")]
+                active = [r for r in runner.list_runs() if runner.read_progress(r)["status"] in ("running", "starting")]
                 if active:
-                    st.error(f"Run {active[0].name} is still running. Stop it first: the GPU fits one run at a time.")
+                    st.error(f"Run {active[0].name} is still running. Stop it first.")
                 else:
                     run_dir = runner.create_run(taxes, mode, None if mode == "all" else int(n),
-                                                batch_size=int(batch) or None, explore=explore, max_level=max_level)
+                                                explore=explore, max_level=max_level)
                     runner.start_run(run_dir)
                     st.success(f"Started run {run_dir.name}")
 
@@ -194,15 +197,17 @@ with tab_run:
                                 f"{cfg['selection']['mode']} · depth {cfg.get('max_level', 3)}")
                     c2.markdown(f"`{status}` · {done:,}/{total:,} · "
                                 f"{prog.get('rate') or '–'} rec/s · ETA {fmt_eta(prog.get('eta_seconds'))}")
-                    if status in ("running", "loading model"):
+                    if status in ("running", "starting"):
                         if c3.button("Stop", key=f"stop_{run_dir.name}"):
                             runner.request_stop(run_dir)
                     elif status in ("stopped", "interrupted", "failed", "created") and done < total:
                         if c3.button("Resume", key=f"resume_{run_dir.name}"):
                             runner.start_run(run_dir)
                     st.progress(done / total if total else 0.0)
-                    if prog.get("hardware"):
-                        st.caption(prog["hardware"])
+                    if prog.get("cost_usd") is not None:
+                        st.caption(f"{prog.get('engine', '')} · {prog.get('calls', 0):,} calls · "
+                                   f"{prog.get('input_tokens', 0) + prog.get('output_tokens', 0):,} tokens · "
+                                   f"${prog['cost_usd']:.3f} so far")
                     if prog.get("error"):
                         st.error(prog["error"])
                     log = run_dir / "log.txt"

@@ -1,9 +1,8 @@
 """Zip this folder for another PC.
 
   python -m landclass.pack                  code + taxonomies + label hints + data snapshot
-  python -m landclass.pack --with-model     also the model (≈2 GB, no download needed there)
   python -m landclass.pack --with-results   also runs/ and output/
-  python -m landclass.pack --with-env       also .env (contains the DB password!)
+  python -m landclass.pack --with-env       also .env (contains the DB password and the Mistral key!)
 
 Never included: .venv (rebuilt by setup.sh / setup.bat), __pycache__.
 """
@@ -14,7 +13,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from .config import LOCAL_MODEL_DIR, ROOT
+from .config import ROOT
 
 ALWAYS = ["app.py", "landclass", "LandCover_Types.csv", "LandUse_Types.csv", "label_hints.csv",
           "README.md", "classification_options.md", "requirements.txt", "example.env",
@@ -32,7 +31,6 @@ def _files(path: Path):
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(prog="python -m landclass.pack")
-    ap.add_argument("--with-model", action="store_true")
     ap.add_argument("--with-results", action="store_true")
     ap.add_argument("--with-env", action="store_true")
     ap.add_argument("--out", type=Path, default=ROOT.parent / f"landcover-landuse-classifier-{datetime.now():%Y%m%d}.zip")
@@ -43,20 +41,14 @@ def main(argv=None) -> None:
         items += ["runs", "output"]
     if a.with_env:
         items.append(".env")
-    if a.with_model:
-        if not (LOCAL_MODEL_DIR / "config.json").exists():
-            from .download_model import download
-            download()
-        items.append(str(LOCAL_MODEL_DIR.relative_to(ROOT)))
 
     folder = "landcover-landuse-classifier"
     count = 0
-    # model weights don't compress; store them to save time
     with zipfile.ZipFile(a.out, "w", zipfile.ZIP_DEFLATED) as zf:
         for item in items:
             for f in _files(ROOT / item):
                 rel = f.relative_to(ROOT)
-                method = zipfile.ZIP_STORED if f.suffix in (".safetensors", ".bin", ".parquet") else zipfile.ZIP_DEFLATED
+                method = zipfile.ZIP_STORED if f.suffix == ".parquet" else zipfile.ZIP_DEFLATED
                 zf.write(f, f"{folder}/{rel.as_posix()}", compress_type=method)
                 count += 1
     size = a.out.stat().st_size / 2**20

@@ -4,7 +4,7 @@ The CSVs have one row per leaf with Level_1/2/3 code + description columns.
 Rows whose Level_3 code equals the Level_2 code (e.g. C10/C10) have no real
 third level, so no Level 3 node is created for them.
 
-`label_hints.csv` holds what the model actually sees for each class: the
+`label_hints.csv` holds what the model sees for each class: the
 label name, an optional hint (description), and whether the class is enabled.
 It is created from the taxonomy CSVs on first use and can be edited in the UI.
 """
@@ -39,16 +39,9 @@ DEFAULT_DISABLED = {("landcover", "Bx0"), ("landcover", "Bx1"), ("landcover", "B
 
 HINT_COLUMNS = ["taxonomy", "code", "level", "parent_code", "name", "hint", "enabled"]
 
-_RESERVED = ("[P]", "[L]", "[C]", "[E]", "[R]", "[DESCRIPTION]", "[EXAMPLE]", "[OUTPUT]")
-
-
 def clean_label(text: str) -> str:
-    """Make a string safe for GLiNER2 prompts: parentheses and marker tokens are reserved."""
-    text = re.sub(r"\s*\(([^)]*)\)", r", \1", str(text))
-    text = text.replace("(", " ").replace(")", " ")
-    for token in _RESERVED:
-        text = text.replace(token, " ")
-    return re.sub(r"\s+", " ", text).strip(" ,")
+    """Collapse whitespace in a label or hint."""
+    return re.sub(r"\s+", " ", str(text)).strip(" ,")
 
 
 @dataclass
@@ -88,16 +81,6 @@ class Taxonomy:
         if kids:
             return clean_label("includes " + ", ".join(k.name for k in kids))
         return None
-
-    def label_map(self, nodes: list[Node]) -> dict[str, str]:
-        """Model label text -> code, de-duplicated among siblings."""
-        out: dict[str, str] = {}
-        for n in nodes:
-            label = n.label
-            if label in out:
-                label = f"{label} {n.code}"
-            out[label] = n.code
-        return out
 
 
 def _nodes_from_csv(key: str) -> list[dict]:

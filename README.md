@@ -5,9 +5,9 @@ Classifies the records in `public.records` (title + abstract) into two separate 
 - **Land cover**: `LandCover_Types.csv` (LUCAS-style, 3 levels, classes A–H)
 - **Land use**: `LandUse_Types.csv` (HILUCS-style, 3 levels, classes U1–U4)
 
-It uses the [GLiNER2.5-Decide](https://huggingface.co/fastino/GLiNER2.5-Decide) model, running
-locally on your machine. **The database is only read** (one `SELECT` into a local snapshot). All
-results are written as **CSV files**. It comes with a web UI (Streamlit) and a command-line runner.
+It uses the [Mistral API](https://docs.mistral.ai/) (`mistral-small-latest` by default); record titles
+and abstracts are sent to Mistral. **The database is only read** (one `SELECT` into a local snapshot).
+All results are written as **CSV files**. It comes with a web UI (Streamlit) and a command-line runner.
 
 ---
 
@@ -21,7 +21,7 @@ results are written as **CSV files**. It comes with a web UI (Streamlit) and a c
 6. [Output files](#6-output-files)
 7. [Command line](#7-command-line)
 8. [Move to another PC](#8-move-to-another-pc)
-9. [Speed and hardware](#9-speed-and-hardware)
+9. [Speed and cost](#9-speed-and-cost)
 10. [Troubleshooting](#10-troubleshooting)
 11. [Project structure](#11-project-structure)
 
@@ -29,20 +29,17 @@ results are written as **CSV files**. It comes with a web UI (Streamlit) and a c
 
 ## 1. Requirements
 
-| | Minimum | Recommended |
-|---|---|---|
-| Python | 3.10 | 3.10–3.12 |
-| GPU | none (CPU works, but slowly) | NVIDIA GPU with ≥ 8 GB VRAM |
-| NVIDIA driver | one that supports your PyTorch CUDA build | latest |
-| RAM | 8 GB | 16 GB+ |
-| Disk | ~6 GB (Python packages + 2 GB model) | |
-| Network | for setup (packages + model download) and for fetching from the DB | |
+| | Requirement |
+|---|---|
+| Python | 3.10–3.12 |
+| Mistral API key | from https://console.mistral.ai/api-keys (paid usage; about $0.55 per 1,000 records for both taxonomies) |
+| Network | for setup, for the Mistral API and for fetching from the DB |
+| Disk | < 1 GB |
 
-Check Python and the GPU:
+Check Python:
 
 ```bash
 python3 --version        # Windows: python --version
-nvidia-smi               # shows the GPU and driver if NVIDIA drivers are installed
 ```
 
 ---
@@ -68,22 +65,8 @@ setup.bat
 The script will:
 
 1. create a virtual environment in `.venv/`
-2. install PyTorch and everything in `requirements.txt`
-3. download the model (about 2 GB) into `models/GLiNER2.5-Decide/`
-4. copy `example.env` to `.env` if `.env` doesn't exist yet
-5. print the detected hardware, e.g. `NVIDIA GeForce RTX 4090, 24 GB · cuda · bf16 · batch 64`
-
-**Choosing a CUDA build of PyTorch**
-
-- **Linux:** the default PyPI torch already includes CUDA. To choose a specific build:
-  `TORCH_INDEX=https://download.pytorch.org/whl/cu126 ./setup.sh`
-- **Windows:** PyPI torch is CPU-only, so `setup.bat` installs from the PyTorch index
-  (default `cu130`). With an older NVIDIA driver, pick an older build first:
-  ```bat
-  set TORCH_INDEX=https://download.pytorch.org/whl/cu126
-  setup.bat
-  ```
-  See https://pytorch.org/get-started/locally/ for the builds that match your driver.
+2. install everything in `requirements.txt`
+3. copy `example.env` to `.env` if `.env` doesn't exist yet
 
 ### Option B: manual setup
 
@@ -92,9 +75,7 @@ The script will:
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
-# optional, to choose a CUDA build: .venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cu126
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m landclass.download_model
 cp example.env .env
 ```
 
@@ -103,9 +84,7 @@ cp example.env .env
 ```bat
 python -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu130
 .venv\Scripts\python -m pip install -r requirements.txt
-.venv\Scripts\python -m landclass.download_model
 copy example.env .env
 ```
 
@@ -135,35 +114,34 @@ DB_CONNECT_TIMEOUT=10
 If the folder already contains `data/records_snapshot.parquet` (e.g. it came in a packed zip), you
 can leave the database settings empty and use the snapshot.
 
-**Hardware** (optional): leave these commented out to auto-detect. Set them only to override:
+**Mistral API**:
 
 ```ini
-# LANDCLASS_DEVICE=cuda      # cuda | cuda:1 | mps | cpu
-# LANDCLASS_DTYPE=bf16       # fp32 | fp16 | bf16
-# LANDCLASS_BATCH=32
+MISTRAL_API_KEY=your-key
+# optional
+# MISTRAL_MODEL=mistral-small-latest
+# MISTRAL_CONCURRENCY=8        # parallel requests; lower it on rate-limit errors
 ```
 
 ---
 
 ## 4. Check the installation
 
-```bash
-# 1. Which device, precision and batch size will be used
-.venv/bin/python -m landclass.hardware
+Classify 5 random records end to end (needs the snapshot; see step 5.1 and your API key):
 
-# 2. Classify 5 random records end to end (needs the snapshot; see step 5.1)
+```bash
 .venv/bin/python -m landclass.runner new --sample 5
 ```
 
 The test run prints lines like:
 
 ```
-[15:47:24] model on NVIDIA GeForce GTX 1650 Ti, 4 GB · cuda · fp32 · batch 4
-[15:47:35] 5/5  0.48 rec/s
+[15:47:24] Mistral API · mistral-small-latest · 8 parallel
+[15:47:31] 5/5  0.71 rec/s  $0.008
 finished
 ```
 
-If the first line says `cpu` but you have an NVIDIA GPU, see [Troubleshooting](#10-troubleshooting).
+The cost shown is computed from the token counts the API returns.
 
 ---
 
@@ -210,7 +188,7 @@ Choose:
 
 Click **Start run**. The run continues in the background, and closing the browser doesn't stop it.
 The runs list shows progress, speed and ETA, with **Stop** and **Resume** buttons.
-Only one run at a time fits on the GPU.
+Only one run at a time is allowed.
 
 **Recommended order**
 
@@ -263,7 +241,7 @@ Everything the UI does to run classification is also available from a terminal:
 .venv/bin/python -m landclass.runner run runs/<run_id>              # resume a stopped run
 ```
 
-Other options: `--batch-size N`, `--explore 0.5`. Export the CSVs from the UI (Results tab).
+Other option: `--explore 0.5`. Export the CSVs from the UI (Results tab).
 
 ---
 
@@ -272,36 +250,30 @@ Other options: `--batch-size N`, `--explore 0.5`. Export the CSVs from the UI (R
 On the current PC, build a zip next to the project folder:
 
 ```bash
-.venv/bin/python -m landclass.pack --with-model     # code + data snapshot + model (~2 GB)
-.venv/bin/python -m landclass.pack                  # without model (~16 MB; downloaded during setup)
+.venv/bin/python -m landclass.pack                  # code + data snapshot (~16 MB)
 ```
 
 | Flag | Adds |
 |---|---|
-| `--with-model` | the model, so the new PC needs no model download |
 | `--with-results` | `runs/` and `output/` |
-| `--with-env` | `.env` (**contains the DB password**) |
+| `--with-env` | `.env` (**contains the DB password and the Mistral key**) |
 
 `.venv` is never included. On the new PC: unzip, then follow [2. Setup](#2-setup).
 
 ---
 
-## 9. Speed and hardware
+## 9. Speed and cost
 
-Settings are picked automatically from the GPU (`landclass/hardware.py`):
+Speed depends on `MISTRAL_CONCURRENCY` (default 8 parallel requests) and your Mistral rate limit;
+HTTP 429 and 5xx answers are retried with backoff. Each record needs about 8 calls for both
+taxonomies at depth 3 (one per taxonomy for level 1, plus one per branch above the explore
+threshold). Estimated cost with `mistral-small-latest` ($0.15 / $0.60 per million input / output
+tokens): about **$0.55 per 1,000 records** measured on 20 records, so about $14 for 25k records. Depth 1 is about 3× cheaper.
+Run a small sample first: the Run tab then shows the measured time and cost, and every run shows its
+tokens and cost so far. Prices are set in `.env` (`MISTRAL_PRICE_INPUT/OUTPUT`) and only affect the estimate.
 
-| GPU | Precision | Batch size |
-|---|---|---|
-| RTX 30xx / 40xx / 50xx, A100, … | bf16 | from VRAM × 2 |
-| RTX 20xx, T4, V100 | fp16 | from VRAM × 2 |
-| GTX 16xx and older | fp32 (fp16 is ~4× slower on these) | from VRAM |
-| Apple Silicon (mps) / CPU | fp32 | 8 |
-
-Batch size from VRAM: < 6 GB → 4, < 10 GB → 8, < 20 GB → 16, otherwise 32.
-
-Measured: GTX 1650 Ti (4 GB) ≈ **0.5 records/s** for both taxonomies at depth 3, so all
-25k records take about 15 hours. Depth 1 is about 3× faster. A modern RTX GPU should be many
-times faster; the Run tab shows the measured speed after a first test run.
+Mistral returns a self-reported confidence (0–1) per class, not a calibrated probability, so
+re-tune the thresholds in the Results tab after a first sample.
 
 ---
 
@@ -309,12 +281,9 @@ times faster; the Run tab shows the measured speed after a first test run.
 
 | Problem | Fix |
 |---|---|
-| Hardware check says `cpu` although there is an NVIDIA GPU | PyTorch was installed without CUDA. Reinstall it from the PyTorch index: `.venv/bin/python -m pip install --force-reinstall torch --index-url https://download.pytorch.org/whl/cu126` (pick the build for your driver) |
-| `CUDA error: no kernel image` / driver too old | Install an older CUDA build of torch (see above) or update the NVIDIA driver |
-| `CUDA out of memory` | The batch halves automatically. If it still fails, set `LANDCLASS_BATCH=2` in `.env` and stop other GPU programs |
-| Run is much slower than expected | Check the hardware line in the run's log. On GTX cards use `fp32` (default); on RTX cards `bf16`/`fp16` |
+| `MISTRAL_API_KEY is not set` / HTTP 401 | Put a valid key in `.env` |
+| HTTP 429 (rate limit) | Retried automatically; lower `MISTRAL_CONCURRENCY` if it keeps happening |
 | "Fetch from database" fails | Check the `DB_*` values in `.env`, the VPN/firewall, and `DB_SSLMODE` |
-| Model download fails / no internet | On a PC with internet, run `python -m landclass.pack --with-model` and copy the zip |
 | Port 8501 already in use | `PORT=8502 ./run_ui.sh`, or stop the other Streamlit instance |
 | Run shows `interrupted` | The process stopped (PC restarted, killed). Click **Resume**; finished records are kept |
 | Many wrong labels | Raise the Level 1 threshold (Results tab) and improve the hints (Labels tab) |
@@ -331,11 +300,9 @@ landclass/
   config.py                paths and defaults
   data.py                  read-only DB fetch → data/records_snapshot.parquet
   taxonomy.py              loads the taxonomy CSVs and label_hints.csv
-  engine.py                GLiNER2 cascade classifier (Level 1 → 2 → 3)
-  hardware.py              picks device / precision / batch size
+  engine.py                Mistral cascade classifier (Level 1 → 2 → 3)
   runner.py                background job (resumable)
   export.py                thresholds → CSV files
-  download_model.py        downloads the model into models/
   pack.py                  zips the folder for another PC
 LandCover_Types.csv        land cover taxonomy
 LandUse_Types.csv          land use taxonomy
@@ -345,7 +312,6 @@ requirements.txt           Python dependencies
 setup.sh / setup.bat       one-time setup
 run_ui.sh / run_ui.bat     start the UI
 data/                      record snapshot (created by "Fetch from database")
-models/                    downloaded model
 runs/<run_id>/             per run: settings, probabilities, progress, log
 output/<run_id>/           exported CSV files
 ```

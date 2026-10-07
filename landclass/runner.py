@@ -1,7 +1,7 @@
 """Background classification job.
 
 A run lives in runs/<run_id>/:
-  run.json            settings (taxonomies, selection, batch size, explore threshold)
+  run.json            settings (taxonomies, selection, explore threshold)
   label_hints.csv     the label hints frozen at run creation
   ids.txt             record ids to classify
   done_ids.txt        record ids already classified (resume point)
@@ -28,8 +28,8 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from .config import (DEFAULT_BATCH_SIZE, DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL, LABEL_HINTS_FILE,
-                     RECORDS_PER_STEP, ROOT, RUNS_DIR, TAXONOMIES)
+from .config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL, LABEL_HINTS_FILE,
+                     MISTRAL_MODEL, RECORDS_PER_STEP, ROOT, RUNS_DIR, TAXONOMIES)
 from .data import load_snapshot, snapshot_meta
 from .taxonomy import build_taxonomy, load_hints
 
@@ -39,7 +39,7 @@ SCORE_COLUMNS = ["id", "level", "code", "parent", "prob"]
 # -- run management (used by the UI) ---------------------------------------
 
 def create_run(taxonomies: list[str], mode: str = "all", n: int | None = None, seed: int = 42,
-               batch_size: int | None = DEFAULT_BATCH_SIZE, explore: float = DEFAULT_EXPLORE_THRESHOLD,
+               explore: float = DEFAULT_EXPLORE_THRESHOLD,
                max_level: int = DEFAULT_MAX_LEVEL) -> Path:
     df = load_snapshot()
     if df is None:
@@ -61,7 +61,7 @@ def create_run(taxonomies: list[str], mode: str = "all", n: int | None = None, s
         "run_id": run_id,
         "taxonomies": taxonomies,
         "selection": {"mode": mode, "n": n, "seed": seed, "records": len(ids)},
-        "batch_size": batch_size,
+        "model": MISTRAL_MODEL,
         "explore_threshold": explore,
         "max_level": max_level,
         "snapshot": snapshot_meta(),
@@ -148,13 +148,12 @@ def run(run_dir: Path) -> None:
     todo = [i for i in ids if i not in done]
 
     df = load_snapshot().set_index("id")
-    _write_progress(run_dir, status="loading model", done=len(done), total=len(ids), error=None)
-    print(f"[{datetime.now():%H:%M:%S}] loading model; {len(todo)} records to do", flush=True)
-    engine = Engine(batch_size=cfg["batch_size"])
-    hw = engine.hardware.describe()
-    print(f"[{datetime.now():%H:%M:%S}] model on {hw}", flush=True)
-    _write_progress(run_dir, hardware=hw)
-    step = max(RECORDS_PER_STEP, engine.batch_size * 16)
+    _write_progress(run_dir, status="starting", done=len(done), total=len(ids), error=None)
+    print(f"[{datetime.now():%H:%M:%S}] {len(todo)} records to do", flush=True)
+    engine = Engine(model=cfg.get("model", MISTRAL_MODEL))
+    print(f"[{datetime.now():%H:%M:%S}] {engine.describe()}", flush=True)
+    _write_progress(run_dir, engine=engine.describe())
+    step = RECORDS_PER_STEP
 
     writers = {}
     for tax in taxes:
@@ -166,6 +165,9 @@ def run(run_dir: Path) -> None:
             w.writerow(SCORE_COLUMNS)
         writers[tax.key] = (fh, w)
 
+    prog0 = read_progress(run_dir)   # usage from before a resume
+    prev_calls, prev_in, prev_out, prev_cost = (prog0.get(k, 0) for k in
+                                                ("calls", "input_tokens", "output_tokens", "cost_usd"))
     started = time.time()
     processed = 0
     _write_progress(run_dir, status="running", started_at=datetime.now().isoformat(timespec="seconds"))
@@ -189,8 +191,12 @@ def run(run_dir: Path) -> None:
         eta = (len(ids) - done_n) / rate if rate else None
         _write_progress(run_dir, status="running", done=done_n, rate=round(rate, 2),
                         eta_seconds=round(eta) if eta is not None else None,
-                        batch_size=engine.batch_size)
-        print(f"[{datetime.now():%H:%M:%S}] {done_n}/{len(ids)}  {rate:.2f} rec/s", flush=True)
+                        calls=prev_calls + engine.calls,
+                        input_tokens=prev_in + engine.input_tokens,
+                        output_tokens=prev_out + engine.output_tokens,
+                        cost_usd=round(prev_cost + engine.cost_usd, 4))
+        print(f"[{datetime.now():%H:%M:%S}] {done_n}/{len(ids)}  {rate:.2f} rec/s  "
+              f"${prev_cost + engine.cost_usd:.3f}", flush=True)
     else:
         _write_progress(run_dir, status="finished", done=len(ids), eta_seconds=0)
         print("finished", flush=True)
@@ -206,7 +212,6 @@ def main(argv=None):
     n.add_argument("--taxonomies", default=",".join(TAXONOMIES))
     n.add_argument("--limit", type=int, help="first N records")
     n.add_argument("--sample", type=int, help="random sample of N records")
-    n.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="default: from GPU memory")
     n.add_argument("--explore", type=float, default=DEFAULT_EXPLORE_THRESHOLD)
     n.add_argument("--max-level", type=int, default=DEFAULT_MAX_LEVEL, choices=[1, 2, 3])
     r = sub.add_parser("run", help="run or resume an existing run")
@@ -215,7 +220,7 @@ def main(argv=None):
 
     if a.cmd == "new":
         mode, count = ("sample", a.sample) if a.sample else ("first", a.limit) if a.limit else ("all", None)
-        run_dir = create_run(a.taxonomies.split(","), mode, count, batch_size=a.batch_size,
+        run_dir = create_run(a.taxonomies.split(","), mode, count,
                              explore=a.explore, max_level=a.max_level)
         print(run_dir)
     else:

@@ -1,21 +1,9 @@
 # Land cover / land use classifier: Python dependencies
-# Python 3.10–3.12 (tested on 3.10). Install inside a virtual environment:
+# Python 3.10-3.12. Install inside a virtual environment:
 #     python -m pip install -r requirements.txt
-#
-# PyTorch: on Linux the PyPI build below already includes CUDA. On Windows the
-# PyPI build is CPU-only, so install torch from the PyTorch index FIRST
-# (setup.bat does this), e.g.:
-#     pip install torch --index-url https://download.pytorch.org/whl/cu130
-torch>=2.1
 
-# Model: GLiNER2 classifier (DeBERTa-v3-large encoder)
-gliner2[local]==2.0.0
-transformers==4.57.6          # gliner2 needs transformers < 5
-huggingface_hub==0.36.2       # matches transformers 4.57 (< 1.0)
-peft==0.21.2
-accelerate==1.15.0
-sentencepiece==0.2.2          # DeBERTa-v3 tokenizer
-numpy>=1.24,<3
+# Mistral API client
+requests>=2.31
 
 # UI
 streamlit==1.58.0
