@@ -121,3 +121,44 @@ ax.legend(handles=[plt.Rectangle((0, 0), 1, 1, color=c) for _, _, c in vals], la
 for s in ax.spines.values():
     s.set_visible(False)
 save(fig, "land_use_differences.png")
+
+# 5. land use setups: F1 against Claude's labels on 100 records (60 + 40 fresh)
+from landclass.export import load_scores, select   # noqa: E402
+from landclass.config import DEFAULT_THRESHOLDS     # noqa: E402
+
+fresh = pd.read_csv(ROOT / "reports" / "claude_verification_fresh40_landuse.csv", keep_default_na=False)
+ids100 = ver["id"].tolist() + fresh["id"].tolist()
+labs100 = ver["claude_lu"].tolist() + fresh["claude_lu"].tolist()
+gate_s = pd.read_csv(ROOT / "runs" / "20261012-162611" / "gate_landuse.csv").set_index("id")["gate"]
+
+
+def f1_for(run_id, use_gate=False):
+    sel = select(load_scores(ROOT / "runs" / run_id, "landuse"), DEFAULT_THRESHOLDS)
+    m = sel[sel["selected"] & (sel["level"] == 1)].groupby("id")["code"].agg(set)
+    tp = fp = fn = 0
+    for i, c in zip(ids100, labs100):
+        a, b = m.get(i, set()), set(c.split(",")) - {"-"}
+        if use_gate and gate_s[i] < 0.5:
+            a = set()
+        tp += len(a & b); fp += len(a - b); fn += len(b - a)
+    p, r = tp / (tp + fp), tp / (tp + fn)
+    return 2 * p * r / (p + r)
+
+
+setups = [("Small, original hint", f1_for("20261012-151353"), "about $0.09", BLUE),
+          ("Small, tighter U1 hint", f1_for("20261012-160555"), "$0.085", BLUE),
+          ("Small, hint + gate (current)", f1_for("20261012-162611"), "$0.10", BLUE),
+          ("Medium, hint", f1_for("20261012-161249"), "$0.25", ORANGE),
+          ("Medium, hint + gate (estimate)", f1_for("20261012-161249", True), "about $0.28", ORANGE)]
+fig, ax = plt.subplots(figsize=(8, 3.6))
+ys = list(range(len(setups)))[::-1]
+for y, (name, f1, cost, col) in zip(ys, setups):
+    ax.barh(y, f1, color=col, height=0.55)
+    ax.text(f1 + 0.01, y, f"F1 {f1:.2f}  ·  {cost} per 500", va="center", fontsize=9)
+ax.set_yticks(ys, [s[0] for s in setups])
+ax.set_xlim(0, 1.0); ax.set_xticks([])
+ax.set_title("Land use fixes: F1 vs Claude's labels (100 records)", loc="left", fontsize=11, fontweight="bold")
+ax.legend(handles=[plt.Rectangle((0, 0), 1, 1, color=BLUE), plt.Rectangle((0, 0), 1, 1, color=ORANGE)],
+          labels=["Mistral Small", "Mistral Medium"], frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2, fontsize=9)
+style(ax, grid=None)
+save(fig, "land_use_fixes.png")
