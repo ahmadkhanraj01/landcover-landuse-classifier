@@ -28,7 +28,7 @@ DEFAULT_HINTS = {
     ("landcover", "F"): "land without vegetation: bare rock, scree, sand dunes, beaches, deserts, lichens and moss",
     ("landcover", "G"): "open water: rivers, streams, lakes, reservoirs, estuaries, lagoons, sea and ocean",
     ("landcover", "H"): "wetlands: marshes, fens, peatlands, bogs, salt marshes, intertidal mudflats, salines",
-    ("landuse", "U1"): "production from land: agriculture, farming, livestock grazing, forestry, timber, fishing, aquaculture, mining and quarrying",
+    ("landuse", "U1"): "land actually used for production: farming (crops, livestock grazing), forestry and timber, fishing and aquaculture, mining and quarrying. Use only when the record is about such land or how it is managed. Do NOT use for general soil science, soil chemistry or microbiology, climate or lab experiments, models, or policy and project reports that describe no specific land use",
     ("landuse", "U2"): "industry: energy production, power plants, manufacturing, industrial facilities",
     ("landuse", "U3"): "services and infrastructure: transport, utilities, water and waste treatment, construction, commerce, community services, recreation, residential and urban areas",
     ("landuse", "U4"): "land not in use: abandoned farmland, abandoned industrial or residential sites, natural or semi-natural areas without economic use",

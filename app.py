@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from landclass import metrics, runner
-from landclass.config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL,
+from landclass.config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_GATE_THRESHOLD, DEFAULT_MAX_LEVEL,
                               DEFAULT_THRESHOLDS, MISTRAL_API_KEY, MISTRAL_MODEL, TAXONOMIES)
 from landclass.data import fetch_snapshot, load_snapshot, snapshot_meta
 from landclass.export import (export, load_scores, long_table, run_records, run_taxonomy,
@@ -163,6 +163,11 @@ with tab_run:
             explore = c5.slider("Explore threshold", 0.1, 0.9, DEFAULT_EXPLORE_THRESHOLD, 0.05,
                                 help="Sub-classes are only scored under classes at or above this probability. "
                                      "Lower = more detail but slower.")
+            use_gate = st.checkbox(
+                "Land use gate", value=True,
+                help="Before classifying land use, one extra cheap call asks whether the record concerns land that "
+                     "is actually used or unused. 'No' records get no land use label. Fewer wrong 'Primary sector' "
+                     "labels (F1 about +0.03 to +0.06 in tests) for about $0.06 per 1,000 records.")
             n_rec = len(snap) if mode == "all" else n
             speed = measured_speed(taxes, max_level)
             st.caption("Records already classified with the same model, labels, explore threshold and depth are "
@@ -184,7 +189,8 @@ with tab_run:
                     st.error(f"Run {active[0].name} is still running. Stop it first.")
                 else:
                     run_dir = runner.create_run(taxes, mode, None if mode == "all" else int(n),
-                                                explore=explore, max_level=max_level)
+                                                explore=explore, max_level=max_level,
+                                                gate=DEFAULT_GATE_THRESHOLD if use_gate else None)
                     runner.start_run(run_dir)
                     st.success(f"Started run {run_dir.name}")
 
@@ -203,7 +209,8 @@ with tab_run:
                 with st.container(border=True):
                     c1, c2, c3 = st.columns([3, 2, 1])
                     c1.markdown(f"**{run_dir.name}** · {', '.join(TAX_NAMES[t] for t in cfg['taxonomies'])} · "
-                                f"{cfg['selection']['mode']} · depth {cfg.get('max_level', 3)}")
+                                f"{cfg['selection']['mode']} · depth {cfg.get('max_level', 3)}"
+                                f"{' · gate' if cfg.get('gate') is not None else ''}")
                     c2.markdown(f"`{status}` · {done:,}/{total:,} · "
                                 f"{prog.get('rate') or '–'} rec/s · ETA {fmt_eta(prog.get('eta_seconds'))}")
                     if status in ("running", "starting"):

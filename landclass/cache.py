@@ -19,11 +19,25 @@ CACHE_DIR = DATA_DIR / "cache"
 SCORE_COLUMNS = ["id", "level", "code", "parent", "prob"]
 
 
-def fingerprint(tax_key: str, hints: pd.DataFrame, model: str, explore: float, max_level: int) -> str:
+def fingerprint(tax_key: str, hints: pd.DataFrame, model: str, explore: float, max_level: int,
+                gate: str | None = None) -> str:
     h = hints[hints["taxonomy"] == tax_key].sort_values(["level", "code"])
-    payload = json.dumps({"model": model, "explore": round(float(explore), 4), "max_level": int(max_level),
-                          "hints": h[["code", "name", "hint", "enabled"]].fillna("").astype(str).values.tolist()})
+    fields = {"model": model, "explore": round(float(explore), 4), "max_level": int(max_level),
+              "hints": h[["code", "name", "hint", "enabled"]].fillna("").astype(str).values.tolist()}
+    if gate:   # only added when used, so fingerprints of runs without a gate stay unchanged
+        fields["gate"] = gate
+    payload = json.dumps(fields)
     return hashlib.sha1(payload.encode()).hexdigest()[:12]
+
+
+def gate_key(tax_key: str, threshold: float | None) -> str | None:
+    """Identifies the gate (question, prompt, threshold) of a taxonomy; None when it has no gate or it is off."""
+    from .config import TAXONOMIES
+    from .engine import GATE_PROMPT
+    question = TAXONOMIES[tax_key].get("gate")
+    if not question or threshold is None:
+        return None
+    return hashlib.sha1(f"{question}|{GATE_PROMPT}|{round(float(threshold), 4)}".encode()).hexdigest()[:10]
 
 
 def path_for(tax_key: str, fp: str) -> Path:
@@ -71,7 +85,9 @@ def import_run(run_dir: Path) -> dict[str, int]:
         scores_file = run_dir / f"scores_{tax_key}.csv"
         if not scores_file.exists():
             continue
-        fp = fingerprint(tax_key, hints, cfg.get("model", ""), cfg["explore_threshold"], cfg.get("max_level", 3))
+        gate = cfg.get("gate")
+        fp = fingerprint(tax_key, hints, cfg.get("model", ""), cfg["explore_threshold"], cfg.get("max_level", 3),
+                         gate_key(tax_key, gate) if gate is not None else None)
         have = set(load(tax_key, fp))
         df = pd.read_csv(scores_file, dtype=str, keep_default_na=False)
         df = df[df["id"].isin(done) & ~df["id"].isin(have)].drop_duplicates(["id", "code"], keep="last")

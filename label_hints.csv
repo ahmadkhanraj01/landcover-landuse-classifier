@@ -98,7 +98,7 @@ landcover,H20,2,H,Coastal wetlands,,True
 landcover,H21,3,H20,Salt marshes,,True
 landcover,H22,3,H20,Salines,,True
 landcover,H23,3,H20,Intertidal flats,,True
-landuse,U1,1,,Primary sector,"production from land: agriculture, farming, livestock grazing, forestry, timber, fishing, aquaculture, mining and quarrying",True
+landuse,U1,1,,Primary sector,"land actually used for production: farming (crops, livestock grazing), forestry and timber, fishing and aquaculture, mining and quarrying. Use only when the record is about such land or how it is managed. Do NOT use for general soil science, soil chemistry or microbiology, climate or lab experiments, models, or policy and project reports that describe no specific land use",True
 landuse,U11,2,U1,Agriculture,,True
 landuse,U111,3,U11,Agriculture (excluding fallow land and kitchen gardens),,True
 landuse,U112,3,U11,Fallow land,,True

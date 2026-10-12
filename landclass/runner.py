@@ -1,7 +1,8 @@
 """Background classification job.
 
 A run lives in runs/<run_id>/:
-  run.json            settings (taxonomies, selection, explore threshold)
+  run.json            settings (taxonomies, selection, explore threshold, gate)
+  gate_<tax>.csv      gate confidence per record (taxonomies with a gate)
   label_hints.csv     the label hints frozen at run creation
   ids.txt             record ids to classify
   done_ids.txt        record ids already classified (resume point)
@@ -28,7 +29,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-from .config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL, LABEL_HINTS_FILE,
+from .config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_GATE_THRESHOLD, DEFAULT_MAX_LEVEL, LABEL_HINTS_FILE,
                      MISTRAL_MODEL, RECORDS_PER_STEP, ROOT, RUNS_DIR, TAXONOMIES)
 from . import cache
 from .data import load_snapshot, snapshot_meta
@@ -41,7 +42,7 @@ SCORE_COLUMNS = ["id", "level", "code", "parent", "prob"]
 
 def create_run(taxonomies: list[str], mode: str = "all", n: int | None = None, seed: int = 42,
                explore: float = DEFAULT_EXPLORE_THRESHOLD,
-               max_level: int = DEFAULT_MAX_LEVEL) -> Path:
+               max_level: int = DEFAULT_MAX_LEVEL, gate: float | None = DEFAULT_GATE_THRESHOLD) -> Path:
     df = load_snapshot()
     if df is None:
         raise RuntimeError("No snapshot yet: fetch the records first")
@@ -65,6 +66,7 @@ def create_run(taxonomies: list[str], mode: str = "all", n: int | None = None, s
         "model": MISTRAL_MODEL,
         "explore_threshold": explore,
         "max_level": max_level,
+        "gate": gate,   # threshold of the land use gate; null = off
         "snapshot": snapshot_meta(),
         "created_at": datetime.now().isoformat(timespec="seconds"),
     }, indent=2))
@@ -156,8 +158,11 @@ def run(run_dir: Path) -> None:
     _write_progress(run_dir, engine=engine.describe())
     step = RECORDS_PER_STEP
 
+    gates = {tax.key: (TAXONOMIES[tax.key]["gate"], cfg["gate"]) for tax in taxes
+             if TAXONOMIES[tax.key].get("gate") and cfg.get("gate") is not None}
     fps = {tax.key: cache.fingerprint(tax.key, hints, cfg.get("model", MISTRAL_MODEL),
-                                      cfg["explore_threshold"], cfg.get("max_level", 3)) for tax in taxes}
+                                      cfg["explore_threshold"], cfg.get("max_level", 3),
+                                      cache.gate_key(tax.key, cfg.get("gate"))) for tax in taxes}
     stored = {tax.key: cache.load(tax.key, fps[tax.key]) for tax in taxes}
     cache_hits = {tax.key: 0 for tax in taxes}   # records served from the store, per taxonomy
     writers = {}
@@ -193,7 +198,17 @@ def run(run_dir: Path) -> None:
             cache_hits[tax.key] += len(hits)
             if misses:
                 new_rows = [(s.record_id, s.level, s.code, s.parent, f"{s.prob:.4f}")
-                            for s in engine.classify(tax, misses, cfg["explore_threshold"], cfg.get("max_level", 3))]
+                            for s in engine.classify(tax, misses, cfg["explore_threshold"], cfg.get("max_level", 3),
+                                                     gates.get(tax.key))]
+                if tax.key in gates:   # keep the gate confidences next to the scores
+                    gate_file = run_dir / f"gate_{tax.key}.csv"
+                    new_gate = not gate_file.exists()
+                    with open(gate_file, "a", newline="") as gf:
+                        gw = csv.writer(gf)
+                        if new_gate:
+                            gw.writerow(["id", "gate"])
+                        for r in misses:
+                            gw.writerow([r["id"], engine.gate_scores.get(r["id"], "")])
                 for row in new_rows:
                     w.writerow(row)
                 cache.append(tax.key, fps[tax.key], new_rows)
@@ -233,6 +248,7 @@ def main(argv=None):
     n.add_argument("--explore", type=float, default=DEFAULT_EXPLORE_THRESHOLD)
     i = sub.add_parser("import", help="add the scores of an existing run to the store")
     i.add_argument("run_dir", type=Path)
+    n.add_argument("--no-gate", action="store_true", help="skip the land use gate (classify every record)")
     n.add_argument("--max-level", type=int, default=DEFAULT_MAX_LEVEL, choices=[1, 2, 3])
     r = sub.add_parser("run", help="run or resume an existing run")
     r.add_argument("run_dir", type=Path)
@@ -244,7 +260,8 @@ def main(argv=None):
     if a.cmd == "new":
         mode, count = ("sample", a.sample) if a.sample else ("first", a.limit) if a.limit else ("all", None)
         run_dir = create_run(a.taxonomies.split(","), mode, count,
-                             explore=a.explore, max_level=a.max_level)
+                             explore=a.explore, max_level=a.max_level,
+                             gate=None if a.no_gate else DEFAULT_GATE_THRESHOLD)
         print(run_dir)
     else:
         run_dir = a.run_dir

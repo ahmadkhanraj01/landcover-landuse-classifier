@@ -258,7 +258,7 @@ Everything the UI does to run classification is also available from a terminal:
 .venv/bin/python -m landclass.runner run runs/<run_id>              # resume a stopped run
 ```
 
-Other option: `--explore 0.5`. Export the CSVs from the UI (Results tab).
+Other options: `--explore 0.5`, `--no-gate` (skip the land use gate, see section 9.1). Export the CSVs from the UI (Results tab).
 
 ---
 
@@ -378,6 +378,47 @@ in `reports/claude_verification_60.csv`. Mistral's labels use the default thresh
   hint is a new setup, so the records are classified again once (about $0.18 per 500).
 - **Limits:** one annotator, so some of Claude's labels are judgment calls; level 1 only; 60 records
   is a small sample. This is a second opinion from a stronger model, not human ground truth.
+
+**Land use fix attempts (same 500 records, same 60 checked records).** The U1 hint was tightened
+("only when the record is about such land or how it is managed; not general soil science, soil
+chemistry, lab experiments, models or policy reports") and `mistral-medium-latest` was tried:
+
+| Land use, level 1 | Exact match | Precision | Recall | F1 | Cost for 500 records | U1 labels (of 500) |
+|---|---|---|---|---|---|---|
+| Small, original hint | 40/60 | 0.54 | 0.73 | 0.62 | $0.09 | 307 |
+| Small, new hint (**current**) | 42/60 | 0.60 | 0.69 | 0.64 | $0.085 | 269 |
+| Medium, new hint | 42/60 | 0.59 | 0.77 | 0.67 | $0.25 | 253 |
+
+The new hint helps a little. Medium looked only slightly better on the first 60 records (+0.03 F1)
+but is better on the 40 fresh records labelled blind afterwards: over all 100 records Small with
+hint and gate gets F1 0.64, Medium 0.69 (0.71 on the fresh 40; recall 0.80 vs 0.65), at about 2.5×
+the land use cost (about $12 vs $5 for all 25,129 records). Medium still labels soil-science
+records as U1 and adds U4 to records with no land use. **Small stays the default for cost**; this
+comparison is the evidence if that is revisited (Medium plus the gate, an offline estimate, reaches
+74/100 exact match at F1 0.69). The taxonomy has no "none" class, so records without a land use get the nearest class.
+Medium prices used for the estimate: $0.40 / $2.00 per million input / output tokens (not verified).
+**Land use gate (current default).** Before classifying land use, one extra cheap call asks "does
+this record concern land that is actually used (farming, grazing, forestry, mining, industry,
+infrastructure, recreation, settlement) or unused or abandoned, rather than only a laboratory,
+general soil-science, climate, model or policy topic?". Records scoring below 0.5 get no land use
+label. Compared with Claude's labels (Small, new hint):
+
+| Land use, level 1 | Records | No gate | With gate |
+|---|---|---|---|
+| Exact match | first 60 | 42/60 | 45/60 |
+| F1 | first 60 | 0.64 | 0.65 to 0.68 |
+| Exact match | 40 fresh records | 25/40 | 26/40 |
+| F1 | 40 fresh records | 0.60 | 0.59 to 0.62 |
+
+The wording of the gate was tuned on the first 60 records, so the 40 fresh records (labelled blind
+afterwards) are the fairer test; the range is the offline estimate and the real 500-record run.
+Gain is small: F1 about +0.03 on average. Cost: +$0.03 per 500 records (the gate run of 500 records
+cost $0.099 in total for land use, 1.3 records/s). The gate still passes some datasets, maps and
+project reports and sometimes blocks real land use (a biorefinery, soil-scan parcels). Switch it off
+with `--no-gate` on the command line or the *Land use gate* checkbox in the Run tab. The gate
+question is `TAXONOMIES["landuse"]["gate"]` in `landclass/config.py`, the threshold
+`DEFAULT_GATE_THRESHOLD`. Gate confidences are saved per run in `gate_landuse.csv`. Gated and
+ungated scores have different cache fingerprints, so they never mix.
 
 The same numbers (time, speed, cost, tokens, coverage, confidence, extrapolation) appear in the
 **Run report** at the top of the Results tab, together with an *Accuracy: agreement with a
@@ -515,7 +556,7 @@ flowchart LR
     D3 -- "ids, settings, hints" --> P4
     D1 -- "title, abstract" --> P4
     D4 -- "already classified:<br/>reuse, no API call" --> P4
-    P4 -- "only missing records" --> MISTRAL
+    P4 -- "only missing records<br/>(+ land use gate question)" --> MISTRAL
     MISTRAL -- "probabilities, tokens" --> P4
     P4 -- "new scores" --> D4
     P4 -- "scores, progress, cost" --> D3

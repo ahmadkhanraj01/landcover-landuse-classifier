@@ -46,6 +46,53 @@ for short, key in (("lc", "landcover"), ("lu", "landuse")):
 diffs = ver[~ver["lu_match"]]
 u1_over = sum(1 for _, r in diffs.iterrows() if "U1" in r["mistral_lu"].split(",") and "U1" not in r["claude_lu"].split(","))
 
+# ---- land use: fix attempts, scored against Claude's labels on two sets of records
+from landclass.config import DEFAULT_THRESHOLDS  # noqa: E402
+from landclass.export import load_scores, select  # noqa: E402
+
+fresh = pd.read_csv(ROOT / "reports" / "claude_verification_fresh40_landuse.csv", keep_default_na=False)
+sets_ = {"first 60": (ver["id"].tolist(), ver["claude_lu"].tolist()),
+         "fresh 40": (fresh["id"].tolist(), fresh["claude_lu"].tolist())}
+sets_["all 100"] = (sets_["first 60"][0] + sets_["fresh 40"][0], sets_["first 60"][1] + sets_["fresh 40"][1])
+# (name, run, apply the saved gate scores offline?, cost note)
+GATE_RUN = "20261012-162611"
+attempts = [("Small, original hint, no gate", "20261012-151353", False, "$0.18 (both taxonomies)"),
+            ("Small, new U1 hint, no gate", "20261012-160555", False, None),
+            ("Small, new U1 hint + gate (current)", GATE_RUN, False, None),
+            ("Medium, new U1 hint, no gate", "20261012-161249", False, None),
+            ("Medium + gate (offline estimate, not run)", "20261012-161249", True, "about $0.25 + $0.03")]
+
+
+def lu_sets(run_id):
+    sel = select(load_scores(ROOT / "runs" / run_id, "landuse"), DEFAULT_THRESHOLDS)
+    return sel[sel["selected"] & (sel["level"] == 1)].groupby("id")["code"].agg(set)
+
+
+def lu_score(m, ids, labels, gate=None):
+    tp = fp = fn = ex = 0
+    for i, c in zip(ids, labels):
+        a, b = m.get(i, set()), set(c.split(",")) - {"-"}
+        if gate is not None and gate[i] < 0.5:
+            a = set()
+        t, f, n = prf(a, b); tp += t; fp += f; fn += n; ex += a == b
+    p, r = tp / (tp + fp), tp / (tp + fn)
+    return ex, len(ids), p, r, 2 * p * r / (p + r)
+
+
+gate_g = pd.read_csv(ROOT / "runs" / GATE_RUN / "gate_landuse.csv")
+gate_s = gate_g.set_index("id")["gate"]
+n_pass = int((gate_g["gate"] >= 0.5).sum())
+fix_rows = ""
+for name, rid, use_gate, note in attempts:
+    m = lu_sets(rid)
+    cost = note or f"${metrics.run_summary(ROOT / 'runs' / rid)['cost_usd']:.3f}"
+    cells = ""
+    for key, (ids_, labs) in sets_.items():
+        ex, n, p, r, f1 = lu_score(m, ids_, labs, gate_s if use_gate else None)
+        cells += (f"<td>{ex}/{n}</td><td><b>{f1:.2f}</b></td>" if key != "all 100"
+                  else f"<td>{ex}/{n}</td><td>{p:.2f}</td><td>{r:.2f}</td><td><b>{f1:.2f}</b></td>")
+    fix_rows += f"<tr><td>{name}</td>{cells}<td>{cost}</td></tr>"
+
 rows = "".join(f'<tr><td>{l}</td>' + "".join(
     f'<td>{ag[k][l]["precision"]:.0%}</td><td>{ag[k][l]["recall"]:.0%}</td><td>{ag[k][l]["f1"]:.2f}</td>'
     f'<td>{ag[k][l]["exact_match"]:.0%}</td>' for k in keys) + '</tr>' for l in (1, 2, 3))
@@ -94,6 +141,12 @@ td.n{{width:40px;text-align:right}}td.bar{{width:55%}}td.bar div{{height:10px;ba
 <b>Limits:</b> one annotator (some labels are judgment calls), level 1 only, small sample. This is a second opinion from a stronger model, not human ground truth.</div>
 <h2>Land use: the {len(diffs)} differences</h2>
 <table class=small><tr><th>#</th><th>Title</th><th>Claude</th><th>Mistral</th></tr>{dtab}</table>
+<div class=pb></div>
+<h2>Land use: fixing the "Primary sector" over-labelling</h2>
+<p>Mistral Small puts U1 (Primary sector) on soil-science records that are not about farming, forestry, fishing or mining. Five setups (the last is an offline estimate) were scored against Claude's level-1 labels on two sets, and their union: the <b>first 60</b> records (used to tune the hint and the gate wording, so slightly optimistic) and <b>40 fresh</b> records labelled blind afterwards (the fairer test). Gate = one extra cheap call per record asking whether it concerns land that is actually used or unused; records scoring below 0.5 get no land use label.</p>
+<table class=small><tr><th rowspan=2>Setup</th><th colspan=2>First 60</th><th colspan=2>Fresh 40</th><th colspan=4>All 100</th><th rowspan=2>Cost (500 records, land use)</th></tr>
+<tr><th>Exact</th><th>F1</th><th>Exact</th><th>F1</th><th>Exact</th><th>Prec.</th><th>Recall</th><th>F1</th></tr>{fix_rows}</table>
+<div class=note><b>Result:</b> the tighter hint and the gate each help a little. Small goes from F1 0.59 (original) to 0.64 (hint + gate) over all 100 records. <b>Mistral Medium is better: F1 0.69 over all 100 (0.71 on the fresh 40), mainly through higher recall (0.80 vs 0.65), at about 2.5x the land use cost</b> ($0.25 vs $0.10 per 500 records; roughly $12 vs $5 for all 25,129 records). Medium plus the gate gives the best exact match (74/100) at the same F1. Small was kept as the default for cost; this table is the evidence if that decision is revisited. Medium still puts U1 on soil-science records, and the gate passed {n_pass} of 500 records and still lets some datasets, maps and project reports through. The first 60 records were also used to tune the hint and gate wording, so the fresh 40 are the fairer test. Run-to-run variation is about ±0.03 F1. The labels are one reviewer's (Claude), not human ground truth. Details: <code>reports/claude_verification_60.csv</code>, <code>reports/claude_verification_fresh40_landuse.csv</code>.</div>
 <h2>Accuracy 2: agreement with an earlier run</h2>
 <p>Agreement with run {ref_id} (1 record per call) on the 100 records both runs contain. The reference is not human-verified: this measures consistency, not correctness. Precision, recall and F1 treat the reference labels as truth.</p>
 <table><tr><th rowspan=2>Level</th><th colspan=4>Land cover</th><th colspan=4>Land use</th></tr>

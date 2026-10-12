@@ -51,6 +51,19 @@ Classes (code: name - description):
 Answer with a JSON object with the keys {keys}. Each value is an object that maps every class code to its confidence for that record."""
 
 
+GATE_PROMPT = """You screen scientific records (title and abstract) for a soil and land research database.
+
+Question: {question}
+
+You receive {n_records}, each starting with "Record <k>:". Judge every record on its own.
+Give a confidence between 0 and 1 that the answer is YES.
+- YES (0.8-1): the study or dataset concerns land that is farmed, grazed, forested, mined, built on, or used for industry, energy, infrastructure, recreation or settlement, or land that is unused or abandoned. This includes field experiments and surveys on cropland, pasture, orchards, forest plantations or other managed land, and land-use or land-cover maps and inventories.
+- NO (0-0.2): laboratory or pot experiments, general soil chemistry, physics or microbiology with no land named, climate or atmospheric work, methods, models, instruments, datasets without a stated land, and project, workshop or policy reports.
+- Judge only from the text.
+
+Answer with a JSON object with the keys {keys}. Each value is an object with the single key "GATE" (the confidence)."""
+
+
 @dataclass
 class Score:
     record_id: str
@@ -116,6 +129,7 @@ class Engine:
         self._limiter = RateLimiter(MISTRAL_RPM, MISTRAL_TPM)
         self._limits_read = False
         self._lock = threading.Lock()
+        self.gate_scores: dict[str, float] = {}   # record id -> gate confidence, for runs that use a gate
         self.calls = 0
         self.input_tokens = 0
         self.output_tokens = 0
@@ -242,18 +256,53 @@ class Engine:
                         out[(rid, code)] = p
         return out
 
+    # -- gate ------------------------------------------------------------
+
+    def gate(self, question: str, records: list[dict]) -> dict[str, float]:
+        """Yes/no screen: confidence 0-1 per record that `question` is answered yes."""
+        texts = {r["id"]: record_text(r["title"], r["abstract"]) for r in records}
+        ids = list(texts)
+
+        def one(rids):
+            names = [f"r{i + 1}" for i in range(len(rids))]
+            system = GATE_PROMPT.format(question=question, keys=", ".join(f'"{k}"' for k in names),
+                                        n_records="1 record" if len(rids) == 1 else f"{len(rids)} records")
+            one_obj = {"type": "object", "properties": {"GATE": {"type": "number", "minimum": 0, "maximum": 1}},
+                       "required": ["GATE"], "additionalProperties": False}
+            schema = {"type": "object", "properties": {k: one_obj for k in names},
+                      "required": names, "additionalProperties": False}
+            user = "\n\n".join(f"Record {i + 1}:\n{texts[r]}" for i, r in enumerate(rids))
+            return dict(zip(rids, (d["GATE"] for d in self._call(system, schema, user, ["GATE"], len(rids)))))
+
+        out: dict[str, float] = {}
+        chunks = [ids[i:i + self.pack] for i in range(0, len(ids), self.pack)]
+        with ThreadPoolExecutor(self.concurrency) as pool:
+            for res in pool.map(one, chunks):
+                out.update(res)
+        return out
+
     # -- cascade ---------------------------------------------------------
 
-    def classify(self, tax: Taxonomy, records: list[dict], explore: float, max_level: int = 3) -> list[Score]:
+    def classify(self, tax: Taxonomy, records: list[dict], explore: float, max_level: int = 3,
+                 gate: tuple[str, float] | None = None) -> list[Score]:
         """records: dicts with id, title, abstract. Returns every computed probability
-        down to `max_level`."""
+        down to `max_level`. `gate` = (question, threshold): records whose gate confidence is
+        below the threshold are not classified and get probability 0 for every level 1 class."""
         texts = {r["id"]: record_text(r["title"], r["abstract"]) for r in records}
         scores: list[Score] = []
         roots = tax.roots()
+        if gate:
+            question, threshold = gate
+            g = self.gate(question, records)
+            self.gate_scores.update(g)
+            blocked = [rid for rid, p in g.items() if p < threshold]
+            for rid in blocked:
+                scores.extend(Score(rid, 1, n.code, "", 0.0) for n in roots)
+                del texts[rid]
         # frontier: (record_id, node) pairs whose children still need scoring
         frontier: list[tuple[str, Node]] = []
 
-        probs = self._score_groups(tax, [(rid, None, roots) for rid in texts], texts)
+        probs = self._score_groups(tax, [(rid, None, roots) for rid in texts], texts) if texts else {}
         for (rid, code), p in probs.items():
             scores.append(Score(rid, 1, code, "", p))
             if p >= explore and max_level > 1:

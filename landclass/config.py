@@ -46,12 +46,17 @@ TAXONOMIES = {
         "name": "Land use",
         "csv": ROOT / "LandUse_Types.csv",
         "instruction": "Land use types studied or described in this research record",
+        # Optional yes/no screen before classifying: records answered "no" get no land use label.
+        "gate": ("Does this record concern land that is actually used (for example for farming, grazing, forestry, "
+                 "mining, industry, infrastructure, recreation or settlement) or that is unused or abandoned, "
+                 "rather than being only a laboratory, general soil-science, climate, model or policy topic?"),
     },
 }
 
 # Defaults for the cascade and for turning probabilities into labels.
 DEFAULT_EXPLORE_THRESHOLD = 0.50   # descend into a branch when its probability >= this
 DEFAULT_MAX_LEVEL = 3
+DEFAULT_GATE_THRESHOLD = 0.50      # records with a gate score below this get no label (taxonomies with a gate)
 DEFAULT_THRESHOLDS = {1: 0.60, 2: 0.50, 3: 0.50}
 MAX_ABSTRACT_CHARS = 20000         # longer abstracts are cut
 RECORDS_PER_STEP = 120             # records processed (and checkpointed) together
