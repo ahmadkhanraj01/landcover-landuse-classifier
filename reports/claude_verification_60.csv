@@ -1,0 +1,61 @@
+n,id,title,claude_lc,mistral_lc,lc_match,claude_lu,mistral_lu,lu_match
+1,c9d974f3-ac01-446b-8590-f41b3df582ae,Ways to improve alfalfa germination,B,B,True,U1,U1,True
+2,137d3cd6-8769-437f-9d78-142cf998ee00,Cloaking Rayleigh waves via symmetrized elastic tensors,-,-,True,-,-,True
+3,74a3419f-4e5c-4d2f-8c72-e331b5eeaaf2,Liming effects on microbial carbon use efficiency and its potential consequences for soil organic carbon stocks,B,B,True,U1,U1,True
+4,0fab6a03-27e5-4a2f-bace-7e50f0752ed6,Temperature di falda - CMMi 004,-,-,True,-,-,True
+5,f7ef71f3-8c6b-4ad5-bb8f-423a96dbce01,A meta-analysis of fertilizer-induced soil NO and combined NO+N2O emissions,B,B,True,U1,U1,True
+6,09adcb37-8bbf-4509-84fe-c8d1302524b2,Substantial Mitigation Potential for Greenhouse Gases Under High Water Levels in a Cultivated Peatland in the Arctic,"B,H","B,E,H",False,U1,U1,True
+7,22498877-728c-42d7-aebe-01576be322d0,Soil tillage: Child table of the data collection LTE Seehausen,B,B,True,U1,U1,True
+8,b48d7e0b-d7ff-411f-a863-7c5e9bb2b855,Communication and dissemination plan,-,-,True,-,-,True
+9,f21460c9-af30-470d-8fcf-829e626ddc61,The power of pyrolysis,-,-,True,-,U1,False
+10,f46ba0b5-d802-4732-a259-c686b3c8ac8c,Effect Of Elevated Co2 And Temperature On The Oxidative Stress Response To Drought In Lolium Perenne L. And Medicago Sativa L.,-,B,False,-,U1,False
+11,c74416ab-75d8-4655-a5b6-54f4682c7837,"Landforms and Soils, Indus Plain, (Lahore - West Pakistan)",-,-,True,-,-,True
+12,e154df9f-a70e-45bd-a328-426250287d17,Accumulation Of Carbon And Nitrogen In The Plant-Soil System After Afforestation Of Active Sand Dunes In China'S Horqin Sandy Land,"C,F",C,False,U1,U1,True
+13,9110a761-1023-4797-b7e4-75e9f1f2b04d,Phosphorus And Carbon Status Of A Paddy Soil Under Different Fertilization Regimes,B,B,True,U1,U1,True
+14,35c0cd11-080a-4bf5-97df-ae30c16b6dd9,Results from exchanges with stakeholders on the needs for DSTs in soil management : Deliverable D4.1 Towards climate‐smart sustainable management of agricultural soils: Fostering soil management PRACtices and uptake and developing decision support TOols through LIVing labs in EU (PRAC2LIV),-,B,False,U1,U1,True
+15,b3f8491f-0551-4f12-8711-d81442323eb2,"International workshop from yield-based to society-based fertilizer recommendations : Program, minutes, abstracts and presentations : 16-18 April, Lelystad, the Netherlands",-,-,True,U1,-,False
+16,d74ed44f-f324-441e-8cd5-e5e1ccd6325b,Cyanobacteria for restoration of degraded soils,F,F,True,-,U1,False
+17,f99c6bc2-237d-4381-8d04-437a46822b14,Soil acidity (pHCaCl2),B,B,True,U1,U1,True
+18,be301a72-ffc0-4f52-937f-83dbe1179ea2,Characterization of new mycoviruses in Fusarium oxysporum f. sp. dianthi,-,-,True,-,-,True
+19,a7c5d750-ac47-41f9-b5d8-cafb690f7676,Earthworms Facilitate Carbon Sequestration Through Unequal Amplification Of Carbon Stabilization Compared With Mineralization,-,-,True,-,-,True
+20,e139a285-bf6a-4f63-a867-d91a42421c9d,Physiological And Biochemical Responses Ofquercus Pubescensto Air Warming And Drought On Acidic And Calcareous Soils,C,C,True,-,U1,False
+21,2d194419-11e3-4fcd-ad3a-a8cf7d847e54,ORCHILEAK (revision 3875),"G,H",G,False,-,U1,False
+22,4e208f01-961f-4438-9049-ead32a4d9ecb,Soil microbial biomass and respiration,-,-,True,-,-,True
+23,a00bd667-0f0a-4b01-96d5-1c6908088994,"Effect Of Lime And Phosphorus Applications On Concentrations Of Available Nutrients And On P, Al And Mn Uptake By 2 Pasture Legumes In An Acid Soil",E,"B,E",False,U1,U1,True
+24,78f985c6-0b56-4907-add5-d13589008977,In Situ Vivianite Formation in Intertidal Sediments: Ferrihydrite-Adsorbed P Triggers Vivianite Formation,"H,G",G,False,-,-,True
+25,96c496e0-1ae6-4edc-89c3-0c9b5a2f6503,Soil Profile Analytical Database 2,-,-,True,-,-,True
+26,f99821e6-e483-4d99-8fa8-a18aadbb85df,Bacteriophages limitedly contribute to the antimicrobial resistome of microbial communities in wastewater treatment plants,-,-,True,U3,-,False
+27,589a2caf-a25a-4fdb-b87b-0355ceadf986,Remediation of water from perfluorooctanoic acid (PFOA) with ozonation and photocatalysis: Experimental studies and numerical modeling,-,-,True,-,U2,False
+28,44a76d67-87c8-46c6-8208-628f2b3dd0b5,TILLAGE EFFECTS ON PHYSICAL AND HYDROLOGICAL PROPERTIES OF A TYPIC ARGIAQUOLL IN CENTRAL OHIO,B,B,True,U1,U1,True
+29,423a9d0f-af4f-480f-8ddd-059d2a0252b1,Nutrient Additions To A Tropical Rain Forest Drive Substantial Soil Carbon Dioxide Losses To The Atmosphere,C,C,True,U4,U1,False
+30,9e4c4f36-4d31-4b9f-bb69-47420c211895,INSPIRE - Surfaces agricoles basées sur le LPIS de 2022 en Wallonie (BE),"B,C",B,False,U1,U1,True
+31,27215609-c60d-427c-862c-e408a93f1b7d,Effects Of Warming And Drought On Potential N2o Emissions And Denitrifying Bacteria Abundance In Grasslands With Different Land-Use,E,E,True,U1,U1,True
+32,90c1ff81-f284-40db-a3f9-8ba161219b26,Network workshop 3,-,-,True,-,-,True
+33,51bafc15-0416-49ef-88f2-24c15f9e9a47,"RICCAR, MENA Region - Q - Change in Monthly Runoff (HYPE RHM Ensemble for near-,mid-,end-century)",-,G,False,-,-,True
+34,2e52049a-1677-4d25-bd40-c473ae57c87a,climasoma/review-of-meta-analyses: v1.0.0,B,B,True,U1,U1,True
+35,f09f7908-cf3b-4721-97ea-b51f06faeace,Soil suitability for ponds,G,-,False,U1,U1,True
+36,1344e4d9-1898-4b59-9044-2ba90e125258,Long-Term Effects Of Different Cropping Systems On Selected Enzyme Activities,B,B,True,U1,U1,True
+37,00d9265f-54f6-4568-9638-193a602ceef1,Biotic and abiotic factors controlling spatial variation of mean carbon turnover time in forest soil,C,C,True,-,U1,False
+38,e740b0e3-3878-4c70-9dbf-a15730ec8f91,"Effect of N fertilizers on yield, N-uptake, and N-utilization in wheat, barley, potatoes, and maize. - Crop rotation",B,B,True,U1,U1,True
+39,d70c33b2-0cdb-4a89-b1ff-b98c8451837f,Biochar Pyrolyzed At Two Temperatures Affects Escherichia Coli Transport Through A Sandy Soil,-,-,True,-,U1,False
+40,ab701f76-e4c0-41c8-84f0-3f5f0ad41eae,MODELLO WRF-ARW a 3km - Temperatura del suolo (C) - (2025-12-17 ore 00 UTC).,-,-,True,-,-,True
+41,f823d5b7-d898-4c77-ac38-df228a9c9fd9,Soil scans for parcels in Netherlands (20170327_vermeulen_spieClass_3),B,-,False,U1,-,False
+42,b8370c07-fc9a-42fe-ae74-8eee842b8f49,Different Types Of Sub-Alpine Grassland Respond Similarly To Elevated Nitrogen Deposition In Terms Of Productivity And Sedge Abundance,E,E,True,-,U1,False
+43,7f3e2fd6-c163-4939-9cd9-5d00d2c3a6e5,Ecological niche differentiation in soil cyanobacterial communities across the globe,-,C,False,-,-,True
+44,dbdc2fe0-4016-4a6a-9311-117cbee9b24d,Peta Tanah Detail (Desa) Sindangbaranghilir (Indonesia),-,-,True,-,-,True
+45,83342d08-2603-4d25-97e1-a4f849f7b6c9,Inspirational booklet on Cross Visits,-,-,True,-,-,True
+46,8d260610-2da3-4cf8-ac6e-64769f89cc54,Ciraa MASCOT Case Study,-,-,True,-,-,True
+47,fa68df2f-3b9c-4e38-a7d2-c43c10b871bb,"The Invasive Shrub European Buckthorn (Rhamnus Cathartica, L.) Alters Soil Properties In Midwestern Us Woodlands","C,D",C,False,U4,U1,False
+48,e85733e4-2986-488b-a43d-a956611590c6,Gestion durable sols : une vue d'ensemble de la littérature scientifique,-,-,True,-,-,True
+49,db29c800-4e5f-4442-81e8-735dd207fa59,PROMISCES CEN Workshop Agreement,-,-,True,-,-,True
+50,526523d7-52fe-43d0-8d4c-060403370b4a,Speleotema,-,-,True,-,-,True
+51,80678db5-d3c9-4881-9ec7-a20321cf439d,Cessation of grazing causes biodiversity loss and homogenization of soil food webs,E,E,True,"U1,U4",U1,False
+52,22af2581-8438-4b55-8bac-459c6b7b5a77,Elevated Co2 Alleviates Damage From Potato Virus Y Infection In Tobacco Plants,-,-,True,-,U1,False
+53,234409fc-bb60-45fd-8112-1d16a9f853dc,From fine to giant: multi-instrument assessment of the dust particle size distribution at an emission source during the J-WADI field campaign,F,F,True,-,U1,False
+54,fab40e3a-8b84-481c-bef4-898ca645072d,EJP SOIL SIMPLE: Deliverable 1.5 Final report,-,-,True,-,-,True
+55,a4c7c37c-0808-4bb1-8d6e-6bdd96d47fd2,Fertilizer Type And Species Composition Affect Leachate Nutrient Concentrations In Coffee Agroecosystems,B,B,True,U1,U1,True
+56,1f3ab365-8725-44eb-8c84-c7160ecb66e4,Global Soil Salinity Map,-,-,True,-,U1,False
+57,f73f6133-0e94-4374-a343-1b700b188079,Report on Data Collection (Direct and Indirect Drivers of Food Loss) (D2.3),-,-,True,-,-,True
+58,c4d36c50-6139-49bb-b1bc-5a4125271090,Farmwell social innovation Greece energy community,-,-,True,U2,U1,False
+59,48a0fda9-8e24-4aa5-b378-c7906c06da72,SUMMARY OF THE PM(T) ONLINE SURVEY RESULTS - MAY-JULY 2022,-,-,True,-,U2,False
+60,5d31bb63-b396-42e8-9665-be3fd1604864,EcoDataCube.eu: Analysis-ready open environmental data cube for Europe,-,-,True,-,-,True

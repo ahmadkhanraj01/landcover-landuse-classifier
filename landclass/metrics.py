@@ -45,6 +45,7 @@ def run_summary(run_dir: Path) -> dict:
         "cost_usd": cost,
         "cost_per_record": cost / done if done else None,
         "cost_per_1000": cost / done * 1000 if done else None,
+        "cached": prog.get("cached") or 0,
         "engine": prog.get("engine", ""),
     }
 

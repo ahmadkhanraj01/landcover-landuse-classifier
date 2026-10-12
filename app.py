@@ -165,6 +165,8 @@ with tab_run:
                                      "Lower = more detail but slower.")
             n_rec = len(snap) if mode == "all" else n
             speed = measured_speed(taxes, max_level)
+            st.caption("Records already classified with the same model, labels, explore threshold and depth are "
+                       "reused from `data/cache/` (no API call, no cost); only new records are sent to Mistral.")
             if speed:
                 rate, per_rec = speed
                 st.caption(f"Estimated time: **{fmt_eta(n_rec / rate)}**, cost: **≈ ${n_rec * per_rec:,.2f}** "
@@ -212,7 +214,8 @@ with tab_run:
                             runner.start_run(run_dir)
                     st.progress(done / total if total else 0.0)
                     if prog.get("cost_usd") is not None:
-                        st.caption(f"{prog.get('engine', '')} · {prog.get('calls', 0):,} calls · "
+                        st.caption(f"{prog.get('engine', '')} · {prog.get('cached', 0):,} record-taxonomies from "
+                                   f"the saved store (free) · {prog.get('calls', 0):,} calls · "
                                    f"{prog.get('input_tokens', 0) + prog.get('output_tokens', 0):,} tokens · "
                                    f"${prog['cost_usd']:.3f} so far")
                     if prog.get("error"):
@@ -247,7 +250,8 @@ with tab_results:
         st.caption(f"{summ['engine']} · {summ['calls']:,} API calls · {summ['input_tokens']:,} input + "
                    f"{summ['output_tokens']:,} output tokens"
                    + (f" · {summ['tokens_per_record']:,.0f} tokens/record" if summ["tokens_per_record"] else "")
-                   + (f" · {summ['seconds_per_record']:.2f} s/record" if summ["seconds_per_record"] else ""))
+                   + (f" · {summ['seconds_per_record']:.2f} s/record" if summ["seconds_per_record"] else "")
+                   + (f" · {summ['cached']:,} record-taxonomies reused from the saved store" if summ["cached"] else ""))
         if summ["cost_per_record"]:
             full = len(load_snapshot()) if load_snapshot() is not None else None
             if full:

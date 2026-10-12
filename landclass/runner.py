@@ -30,6 +30,7 @@ from pathlib import Path
 
 from .config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL, LABEL_HINTS_FILE,
                      MISTRAL_MODEL, RECORDS_PER_STEP, ROOT, RUNS_DIR, TAXONOMIES)
+from . import cache
 from .data import load_snapshot, snapshot_meta
 from .taxonomy import build_taxonomy, load_hints
 
@@ -155,6 +156,10 @@ def run(run_dir: Path) -> None:
     _write_progress(run_dir, engine=engine.describe())
     step = RECORDS_PER_STEP
 
+    fps = {tax.key: cache.fingerprint(tax.key, hints, cfg.get("model", MISTRAL_MODEL),
+                                      cfg["explore_threshold"], cfg.get("max_level", 3)) for tax in taxes}
+    stored = {tax.key: cache.load(tax.key, fps[tax.key]) for tax in taxes}
+    cache_hits = {tax.key: 0 for tax in taxes}   # records served from the store, per taxonomy
     writers = {}
     for tax in taxes:
         path = run_dir / f"scores_{tax.key}.csv"
@@ -166,8 +171,8 @@ def run(run_dir: Path) -> None:
         writers[tax.key] = (fh, w)
 
     prog0 = read_progress(run_dir)   # usage from before a resume
-    prev_calls, prev_in, prev_out, prev_cost = (prog0.get(k, 0) for k in
-                                                ("calls", "input_tokens", "output_tokens", "cost_usd"))
+    prev_calls, prev_in, prev_out, prev_cost, prev_cached = (prog0.get(k, 0) for k in
+                                                ("calls", "input_tokens", "output_tokens", "cost_usd", "cached"))
     started = time.time()
     processed = 0
     _write_progress(run_dir, status="running", started_at=datetime.now().isoformat(timespec="seconds"))
@@ -180,8 +185,20 @@ def run(run_dir: Path) -> None:
         records = [{"id": i, "title": df.at[i, "title"], "abstract": df.at[i, "abstract"]} for i in batch_ids]
         for tax in taxes:
             fh, w = writers[tax.key]
-            for s in engine.classify(tax, records, cfg["explore_threshold"], cfg.get("max_level", 3)):
-                w.writerow([s.record_id, s.level, s.code, s.parent, f"{s.prob:.4f}"])
+            hits = [r for r in records if r["id"] in stored[tax.key]]
+            misses = [r for r in records if r["id"] not in stored[tax.key]]
+            for r in hits:
+                for level, code, parent, prob in stored[tax.key][r["id"]]:
+                    w.writerow([r["id"], level, code, parent, prob])
+            cache_hits[tax.key] += len(hits)
+            if misses:
+                new_rows = [(s.record_id, s.level, s.code, s.parent, f"{s.prob:.4f}")
+                            for s in engine.classify(tax, misses, cfg["explore_threshold"], cfg.get("max_level", 3))]
+                for row in new_rows:
+                    w.writerow(row)
+                cache.append(tax.key, fps[tax.key], new_rows)
+                for rid, level, code, parent, prob in new_rows:
+                    stored[tax.key].setdefault(rid, []).append((level, code, parent, prob))
             fh.flush()
         with open(done_file, "a") as f:
             f.write("\n".join(batch_ids) + "\n")
@@ -191,6 +208,7 @@ def run(run_dir: Path) -> None:
         eta = (len(ids) - done_n) / rate if rate else None
         _write_progress(run_dir, status="running", done=done_n, rate=round(rate, 2),
                         eta_seconds=round(eta) if eta is not None else None,
+                        cached=prev_cached + sum(cache_hits.values()),
                         calls=prev_calls + engine.calls,
                         input_tokens=prev_in + engine.input_tokens,
                         output_tokens=prev_out + engine.output_tokens,
@@ -213,11 +231,16 @@ def main(argv=None):
     n.add_argument("--limit", type=int, help="first N records")
     n.add_argument("--sample", type=int, help="random sample of N records")
     n.add_argument("--explore", type=float, default=DEFAULT_EXPLORE_THRESHOLD)
+    i = sub.add_parser("import", help="add the scores of an existing run to the store")
+    i.add_argument("run_dir", type=Path)
     n.add_argument("--max-level", type=int, default=DEFAULT_MAX_LEVEL, choices=[1, 2, 3])
     r = sub.add_parser("run", help="run or resume an existing run")
     r.add_argument("run_dir", type=Path)
     a = p.parse_args(argv)
 
+    if a.cmd == "import":
+        print(cache.import_run(a.run_dir))
+        return
     if a.cmd == "new":
         mode, count = ("sample", a.sample) if a.sample else ("first", a.limit) if a.limit else ("all", None)
         run_dir = create_run(a.taxonomies.split(","), mode, count,

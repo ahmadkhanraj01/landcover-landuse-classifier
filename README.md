@@ -24,6 +24,7 @@ All results are written as **CSV files**. It comes with a web UI (Streamlit) and
 9. [Speed and cost](#9-speed-and-cost)
 10. [Troubleshooting](#10-troubleshooting)
 11. [Project structure](#11-project-structure)
+12. [Data flow diagrams](#12-data-flow-diagrams)
 
 ---
 
@@ -325,6 +326,8 @@ Run `20261012-151353`: 500 random records (seed 42), both taxonomies, depth 3, d
 | Cost | **$0.183** ($0.37 per 1,000 records) |
 | All 25,129 records (extrapolated) | about 9.5 h, about $9.20 |
 
+![Records per level-1 class](docs/img/class_distribution.png)
+
 Label coverage and confidence (default thresholds):
 
 | | Land cover | Land use |
@@ -333,6 +336,8 @@ Label coverage and confidence (default thresholds):
 | Records reaching level 2 / level 3 | 37% / 20% | 52% / 42% |
 | Mean level-1 confidence | 0.94 | 0.92 |
 | Most frequent level-1 class | B (165 records) | U1 (307 records) |
+
+![Records that get a label at each depth](docs/img/depth_reached.png)
 
 **Accuracy.** The `records` table has no human labels, so true accuracy cannot be computed. The
 table below is the agreement with run `20261007-162217` (100 of the same records, 1 record per
@@ -345,10 +350,62 @@ recall and F1 treat the reference run's labels as truth.
 | 2 | 0.78 | 83% | 0.80 | 80% |
 | 3 | 0.87 | 94% | 0.76 | 79% |
 
+**Independent check by Claude (60 records).** Claude labelled 60 of the 500 records (random,
+seed 7) at level 1 *before* seeing Mistral's answers, using the title and the first 650 characters
+of the abstract (Mistral saw the full text). The records, both sets of labels and the match flag are
+in `reports/claude_verification_60.csv`. Mistral's labels use the default thresholds.
+
+| Level 1 | Exact match | Precision | Recall | F1 |
+|---|---|---|---|---|
+| Land cover | 47/60 (78%) | 0.82 | 0.79 | **0.81** |
+| Land use | 40/60 (67%) | 0.54 | 0.73 | **0.62** |
+
+![Mistral Small vs Claude's labels](docs/img/claude_check.png)
+
+- **Land cover** is good. Most of the 13 differences are a second class Mistral missed (wetland,
+  shrubland, bare soil); in 3 cases it added one that Claude did not (for example E on a wetland
+  record, B on a ryegrass/alfalfa drought experiment).
+- **Land use** has a clear problem: Mistral puts U1 (Primary sector) on soil-science records that are
+  not about farming, forestry, fishing or mining (biochar, an E. coli lab column, soil enzymes, a
+  global salinity map). 14 of the 20 differences are this, and U1 is 307 of 337 labelled land-use
+  records in the whole run. It also gave U2 to a PFOA water-treatment lab study and missed U3 on a
+  wastewater-plant record.
+
+![Land use: kinds of difference](docs/img/land_use_differences.png)
+
+- **Suggested fix:** tighten the U1 hint in the Labels tab (for example "only when the record is
+  about actually farming, forestry, fishing or mining land, not soil science in general"). A changed
+  hint is a new setup, so the records are classified again once (about $0.18 per 500).
+- **Limits:** one annotator, so some of Claude's labels are judgment calls; level 1 only; 60 records
+  is a small sample. This is a second opinion from a stronger model, not human ground truth.
+
 The same numbers (time, speed, cost, tokens, coverage, confidence, extrapolation) appear in the
 **Run report** at the top of the Results tab, together with an *Accuracy: agreement with a
 reference run* section where you choose the reference run and the level. To measure real accuracy,
 hand-label about 100 records and compare against them.
+
+### 9.2 Saved scores: each record is classified once
+
+Every score is also written to `data/cache/<taxonomy>_<fingerprint>.csv`. A new run first looks
+there and only sends records that are missing to Mistral, so re-running the same records (or a
+bigger sample that contains earlier ones) costs nothing for the records already done. Runs report
+how many were reused (`cached` in `progress.json`, and in the UI).
+
+The fingerprint covers what changes the answer: model, explore threshold, max depth, and the label
+names, hints and enabled flags of that taxonomy. Change any of these (for example edit a hint in the
+Labels tab) and those records are classified again under a new fingerprint; the old scores stay
+in the store. `MISTRAL_PACK` is not part of the fingerprint, so a record done with packs of 5 is not
+redone with `MISTRAL_PACK=1`. To force a full re-run, delete the matching file in `data/cache/`.
+
+Seed the store from runs made before this feature (newest first, existing records are kept):
+
+```bash
+for r in $(ls -r runs); do .venv/bin/python -m landclass.runner import runs/$r; done
+```
+
+Tested on the 500-record sample above: the repeat run took under 1 second, made 0 API calls, cost
+$0 and produced identical scores. `data/` is gitignored; copy `data/cache/` along when moving to
+another PC (`pack.py` includes `data/`).
 
 ---
 
@@ -381,6 +438,7 @@ landclass/
   engine.py                Mistral cascade classifier (Level 1 → 2 → 3)
   runner.py                background job (resumable)
   export.py                thresholds → CSV files
+  cache.py                 saved scores: records are classified once per setup
   metrics.py               run report: time, cost, label quality, agreement between runs
   pack.py                  zips the folder for another PC
 LandCover_Types.csv        land cover taxonomy
@@ -391,10 +449,113 @@ requirements.txt           Python dependencies
 setup.sh / setup.bat       one-time setup
 run_ui.sh / run_ui.bat     start the UI
 data/                      record snapshot (created by "Fetch from database")
+data/cache/                saved scores, reused by every run
 runs/<run_id>/             per run: settings, probabilities, progress, log
 output/<run_id>/           exported CSV files
-reports/                   test reports (PDF)
+docs/                      README charts (docs/img) and docs/make_charts.py
+reports/                   test report (PDF), Claude verification CSV, build script
 ```
 
 For background on how this approach was chosen, see `classification_options.md`; for the move from
 GLiNER to Mistral and the test results, see `mistral_migration.md`.
+
+---
+
+## 12. Data flow diagrams
+
+Diagrams are [Mermaid](https://mermaid.js.org/) and render on GitHub / GitLab. Rectangles are
+external parties, rounded boxes are processes, cylinders are data stores. The charts in section 9.1
+are rebuilt with `.venv/bin/python docs/make_charts.py`.
+
+### Level 0: context
+
+```mermaid
+flowchart LR
+    DB[(PostgreSQL<br/>public.records)]:::ext
+    USER[User]:::ext
+    MISTRAL[Mistral API]:::ext
+    CLAUDE[Claude<br/>independent reviewer]:::ext
+    SYS(["Land cover / land use<br/>classifier"])
+
+    DB -- "id, identifier, title, abstract<br/>(read-only SELECT)" --> SYS
+    USER -- "labels, run settings,<br/>thresholds" --> SYS
+    SYS -- "title + abstract + class list" --> MISTRAL
+    MISTRAL -- "class probabilities,<br/>token usage" --> SYS
+    SYS -- "labelled CSVs, run report,<br/>charts, PDF" --> USER
+    SYS -- "60 sample records<br/>(no Mistral labels)" --> CLAUDE
+    CLAUDE -- "own level-1 labels" --> SYS
+
+    classDef ext fill:#eef3fb,stroke:#2a78d6,color:#0b0b0b
+```
+
+### Level 1a: from records to scores (processes 1 to 4)
+
+```mermaid
+flowchart LR
+    DB[(PostgreSQL<br/>public.records)]:::ext
+    USER[User]:::ext
+    MISTRAL[Mistral API]:::ext
+
+    P1(["1 Fetch records<br/>data.py"])
+    P2(["2 Edit labels<br/>taxonomy.py + UI"])
+    P3(["3 Create run<br/>runner.create_run"])
+    P4(["4 Classify<br/>runner.run + engine.py"])
+
+    D1[("D1 data/records_snapshot.parquet")]
+    D2[("D2 label_hints.csv")]
+    D3[("D3 runs/&lt;run_id&gt;/<br/>run.json, ids, scores_*.csv,<br/>progress.json")]
+    D4[("D4 data/cache/*.csv<br/>saved scores")]
+
+    DB --> P1 --> D1
+    USER -- "hints, names, enabled" --> P2 --> D2
+    USER -- "taxonomies, N, depth,<br/>explore threshold" --> P3
+    D1 -- "record ids" --> P3
+    D2 -- "frozen copy" --> P3
+    P3 --> D3
+    D3 -- "ids, settings, hints" --> P4
+    D1 -- "title, abstract" --> P4
+    D4 -- "already classified:<br/>reuse, no API call" --> P4
+    P4 -- "only missing records" --> MISTRAL
+    MISTRAL -- "probabilities, tokens" --> P4
+    P4 -- "new scores" --> D4
+    P4 -- "scores, progress, cost" --> D3
+
+    classDef ext fill:#eef3fb,stroke:#2a78d6,color:#0b0b0b
+```
+
+### Level 1b: from scores to results (processes 5 to 7)
+
+```mermaid
+flowchart LR
+    USER[User]:::ext
+    CLAUDE[Claude reviewer]:::ext
+
+    D1[("D1 records_snapshot.parquet")]
+    D3[("D3 runs/&lt;run_id&gt;/")]
+    D5[("D5 output/&lt;run_id&gt;/<br/>labelled CSVs")]
+    D6[("D6 reports/<br/>claude_verification_60.csv, PDF")]
+
+    P5(["5 Select labels + export<br/>export.py"])
+    P6(["6 Run report<br/>metrics.py"])
+    P7(["7 Verify with Claude"])
+
+    D3 -- "scores" --> P5
+    USER -- "level thresholds" --> P5
+    P5 --> D5
+    P5 -- "tables, charts" --> USER
+
+    D3 -- "time, tokens, cost, scores" --> P6
+    P6 -- "run report" --> USER
+
+    D1 -- "60 sample records<br/>(no Mistral labels)" --> P7
+    P7 -- "records" --> CLAUDE
+    CLAUDE -- "own level-1 labels" --> P7
+    D3 -- "Mistral labels" --> P7
+    P7 -- "precision, recall, F1" --> D6
+    D6 -- "PDF, README tables" --> USER
+
+    classDef ext fill:#eef3fb,stroke:#2a78d6,color:#0b0b0b
+```
+
+Key rule in process 4: a record is sent to Mistral only if D4 has no scores for the same
+fingerprint (model, explore threshold, depth, labels), see section 9.2.
