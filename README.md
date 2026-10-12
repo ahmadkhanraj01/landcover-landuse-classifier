@@ -313,6 +313,43 @@ Mistral returns a self-reported confidence (0–1) per class, not a calibrated p
 vary slightly between identical runs even at `temperature=0`. Re-tune the thresholds in the Results
 tab after a first sample. See `mistral_migration.md` for the full test notes.
 
+### 9.1 Test on 500 records
+
+Run `20261012-151353`: 500 random records (seed 42), both taxonomies, depth 3, default settings
+(`mistral-small-latest`, 5 records per call, 8 parallel). Full report: `reports/test_500_records.pdf`.
+
+| | Result |
+|---|---|
+| Total time | 11 min 29 s (0.73 records/s, 1.38 s/record) |
+| API calls / tokens | 462 / 936k (841k input + 95k output, about 1,870 per record) |
+| Cost | **$0.183** ($0.37 per 1,000 records) |
+| All 25,129 records (extrapolated) | about 9.5 h, about $9.20 |
+
+Label coverage and confidence (default thresholds):
+
+| | Land cover | Land use |
+|---|---|---|
+| Records with at least 1 label | 57% | 67% |
+| Records reaching level 2 / level 3 | 37% / 20% | 52% / 42% |
+| Mean level-1 confidence | 0.94 | 0.92 |
+| Most frequent level-1 class | B (165 records) | U1 (307 records) |
+
+**Accuracy.** The `records` table has no human labels, so true accuracy cannot be computed. The
+table below is the agreement with run `20261007-162217` (100 of the same records, 1 record per
+call), which is itself not human-verified. It measures consistency, not correctness. Precision,
+recall and F1 treat the reference run's labels as truth.
+
+| Level | Land cover F1 | Land cover exact match | Land use F1 | Land use exact match |
+|---|---|---|---|---|
+| 1 | 0.86 | 85% | 0.92 | 90% |
+| 2 | 0.78 | 83% | 0.80 | 80% |
+| 3 | 0.87 | 94% | 0.76 | 79% |
+
+The same numbers (time, speed, cost, tokens, coverage, confidence, extrapolation) appear in the
+**Run report** at the top of the Results tab, together with an *Accuracy: agreement with a
+reference run* section where you choose the reference run and the level. To measure real accuracy,
+hand-label about 100 records and compare against them.
+
 ---
 
 ## 10. Troubleshooting
@@ -344,6 +381,7 @@ landclass/
   engine.py                Mistral cascade classifier (Level 1 → 2 → 3)
   runner.py                background job (resumable)
   export.py                thresholds → CSV files
+  metrics.py               run report: time, cost, label quality, agreement between runs
   pack.py                  zips the folder for another PC
 LandCover_Types.csv        land cover taxonomy
 LandUse_Types.csv          land use taxonomy
@@ -355,6 +393,7 @@ run_ui.sh / run_ui.bat     start the UI
 data/                      record snapshot (created by "Fetch from database")
 runs/<run_id>/             per run: settings, probabilities, progress, log
 output/<run_id>/           exported CSV files
+reports/                   test reports (PDF)
 ```
 
 For background on how this approach was chosen, see `classification_options.md`; for the move from

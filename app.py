@@ -9,7 +9,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from landclass import runner
+from landclass import metrics, runner
 from landclass.config import (DEFAULT_EXPLORE_THRESHOLD, DEFAULT_MAX_LEVEL,
                               DEFAULT_THRESHOLDS, MISTRAL_API_KEY, MISTRAL_MODEL, TAXONOMIES)
 from landclass.data import fetch_snapshot, load_snapshot, snapshot_meta
@@ -37,6 +37,13 @@ def measured_speed(taxes: list[str], max_level: int):
                 and prog.get("rate") and prog.get("cost_usd") and prog.get("done")):
             return prog["rate"], prog["cost_usd"] / prog["done"]
     return None
+
+
+def fmt_duration(seconds) -> str:
+    if seconds is None:
+        return "–"
+    m, s = divmod(int(seconds), 60)
+    return f"{m} min {s} s" if m else f"{s} s"
 
 
 def fmt_eta(seconds) -> str:
@@ -227,6 +234,68 @@ with tab_results:
         cfg = runner.read_run(run_dir)
         records = run_records(run_dir)
         include_abstract = st.checkbox("Include abstract in exported CSV", value=False)
+
+        # ---- run report: time, cost, label quality, agreement with another run
+        summ = metrics.run_summary(run_dir)
+        st.subheader("Run report")
+        r1, r2, r3, r4, r5 = st.columns(5)
+        r1.metric("Records", f"{summ['records']:,}")
+        r2.metric("Total time", fmt_duration(summ["wall_seconds"]))
+        r3.metric("Speed", f"{summ['records_per_second']:.2f} rec/s" if summ["records_per_second"] else "–")
+        r4.metric("Total cost", f"${summ['cost_usd']:.3f}")
+        r5.metric("Cost / 1,000 records", f"${summ['cost_per_1000']:.2f}" if summ["cost_per_1000"] else "–")
+        st.caption(f"{summ['engine']} · {summ['calls']:,} API calls · {summ['input_tokens']:,} input + "
+                   f"{summ['output_tokens']:,} output tokens"
+                   + (f" · {summ['tokens_per_record']:,.0f} tokens/record" if summ["tokens_per_record"] else "")
+                   + (f" · {summ['seconds_per_record']:.2f} s/record" if summ["seconds_per_record"] else ""))
+        if summ["cost_per_record"]:
+            full = len(load_snapshot()) if load_snapshot() is not None else None
+            if full:
+                st.caption(f"Extrapolated to all {full:,} records at this rate: "
+                           f"**{fmt_duration(full / summ['records_per_second'])}**, "
+                           f"**≈ ${full * summ['cost_per_record']:,.2f}**")
+
+        q_cols = st.columns(len(cfg["taxonomies"]))
+        for col, key in zip(q_cols, cfg["taxonomies"]):
+            q = metrics.label_quality(run_dir, key)
+            if not q:
+                continue
+            with col:
+                st.markdown(f"**{TAX_NAMES[key]}** (default thresholds)")
+                a, b = st.columns(2)
+                a.metric("Records with ≥ 1 label", f"{q['coverage']:.0%}")
+                b.metric("Labels / record", f"{q['labels_per_record']:.2f}")
+                a.metric("Mean L1 confidence", f"{q['mean_l1_confidence']:.2f}" if q["mean_l1_confidence"] else "–")
+                b.metric("L1 labels ≥ 0.8", f"{q['high_confidence_share']:.0%}" if q["high_confidence_share"] is not None else "–")
+                st.caption("Records reaching level 1 / 2 / 3: " +
+                           " / ".join(f"{q['reach_level'][lv]:.0%}" for lv in (1, 2, 3)))
+
+        with st.expander("Accuracy: agreement with a reference run", expanded=False):
+            st.caption("The records table has no human labels, so true accuracy cannot be computed. This compares "
+                       "this run with a reference run on the records both contain (precision / recall / F1 of "
+                       "the reference's labels at the chosen level). Use a stronger setup as the reference, "
+                       "e.g. 1 record/call or a larger model.")
+            others = metrics.comparable_runs(run_dir)
+            if not others:
+                st.info("No other run to compare with yet.")
+            else:
+                ref = st.selectbox("Reference run", others, format_func=lambda r: (
+                    f"{r.name} · {runner.read_progress(r)['done']:,} records · "
+                    f"{runner.read_progress(r).get('engine', '')}"))
+                lvl = st.radio("Level", [1, 2, 3], horizontal=True)
+                rows = []
+                for key in set(cfg["taxonomies"]) & set(runner.read_run(ref)["taxonomies"]):
+                    ag = metrics.agreement(run_dir, ref, key, lvl)
+                    if ag:
+                        rows.append({"taxonomy": TAX_NAMES[key], "shared records": ag["shared"],
+                                     "exact match": f"{ag['exact_match']:.1%}", "precision": f"{ag['precision']:.1%}",
+                                     "recall": f"{ag['recall']:.1%}", "F1": f"{ag['f1']:.1%}"})
+                if rows:
+                    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+                else:
+                    st.warning("The two runs share no records.")
+        st.divider()
+
 
         for key, tab in zip(cfg["taxonomies"], st.tabs([TAX_NAMES[t] for t in cfg["taxonomies"]])):
             with tab:
