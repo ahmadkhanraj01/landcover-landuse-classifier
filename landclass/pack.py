@@ -17,7 +17,8 @@ from .config import ROOT
 
 ALWAYS = ["app.py", "simple_app.py", "mistral_migration.md", "landclass", "LandCover_Types.csv", "LandUse_Types.csv", "label_hints.csv",
           "README.md", "classification_options.md", "requirements.txt", "example.env",
-          "setup.sh", "setup.bat", "run_ui.sh", "run_ui.bat", "data"]
+          "setup.sh", "setup.bat", "run_ui.sh", "run_ui.bat", "data",
+          "run_all.sh", "pipeline.py", "load_to_db.py", "plan_to_add.md"]
 
 
 def _files(path: Path):

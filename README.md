@@ -1,12 +1,12 @@
 # Land cover / land use classifier (`landcover-landuse-classifier`)
 
-Classifies the records in `public.records` (title + abstract) into two separate taxonomies:
+Classifies the records in `validate.records` (title + abstract) into two separate taxonomies:
 
 - **Land cover**: `LandCover_Types.csv` (LUCAS-style, 3 levels, classes A–H)
 - **Land use**: `LandUse_Types.csv` (HILUCS-style, 3 levels, classes U1–U4)
 
 It uses the [Mistral API](https://docs.mistral.ai/) (`mistral-small-latest` by default); record titles
-and abstracts are sent to Mistral. **The database is only read** (one `SELECT` into a local snapshot).
+and abstracts are sent to Mistral. The database is read once into a local snapshot; the optional database step (section 7.1) writes only to the `validate` schema's new tables.
 All results are written as **CSV files**. It comes with a web UI (Streamlit) and a command-line runner.
 
 ---
@@ -19,7 +19,7 @@ All results are written as **CSV files**. It comes with a web UI (Streamlit) and
 4. [Check the installation](#4-check-the-installation)
 5. [Use the UI](#5-use-the-ui)
 6. [Output files](#6-output-files)
-7. [Command line](#7-command-line)
+7. [Command line, whole pipeline and database](#7-command-line)
 8. [Move to another PC](#8-move-to-another-pc)
 9. [Speed and cost](#9-speed-and-cost)
 10. [Troubleshooting](#10-troubleshooting)
@@ -98,7 +98,7 @@ copy example.env .env
 
 Open `.env` in a text editor. Every setting is explained in `example.env`.
 
-**Database** (only needed to fetch records; it is read-only):
+**Database** (needed to fetch records and, for the database step in [7.1](#71-whole-pipeline-and-database-tables), to write the result tables):
 
 ```ini
 DB_HOST=your-db-host
@@ -106,10 +106,13 @@ DB_PORT=5432
 DB_NAME=your-db-name
 DB_USER=your-user
 DB_PASSWORD=your-password
-DB_SCHEMA=public
+DB_SCHEMA=validate
 DB_TABLE=records
 DB_SSLMODE=prefer
 DB_CONNECT_TIMEOUT=10
+# optional: a separate account that may create tables in the validate schema
+# DB_WRITE_USER=
+# DB_WRITE_PASSWORD=
 ```
 
 If the folder already contains `data/records_snapshot.parquet` (e.g. it came in a packed zip), you
@@ -231,7 +234,7 @@ For each taxonomy (`landcover`, `landuse`) in `output/<run_id>/`:
 
 | Column | Content |
 |---|---|
-| `id`, `identifier`, `title` | from `public.records` |
+| `id`, `identifier`, `title` | from `DB_SCHEMA.DB_TABLE` |
 | `codes` / `labels` | most specific selected classes, e.g. `B17` / `Rice` (separated by `; `) |
 | `probabilities` | e.g. `B17=0.98; C=0.71` |
 | `L1_codes`, `L1_labels`, `L2_…`, `L3_…` | selected classes per level |
@@ -258,7 +261,38 @@ Everything the UI does to run classification is also available from a terminal:
 .venv/bin/python -m landclass.runner run runs/<run_id>              # resume a stopped run
 ```
 
-Other options: `--explore 0.5`, `--no-gate` (skip the land use gate, see section 9.1). Export the CSVs from the UI (Results tab).
+Other options: `--explore 0.5`, `--no-gate` (skip the land use gate, see section 9.1). Export the CSVs from the UI (Results tab), or let `pipeline.py` do it (7.1).
+
+### 7.1 Whole pipeline and database tables
+
+`./run_all.sh` does everything: classify, write the CSV files, load them into the database, open the UI.
+
+```bash
+./run_all.sh --sample 20              # random 20 records
+./run_all.sh                          # all records
+./run_all.sh --resume runs/<run_id>   # continue an interrupted run
+./run_all.sh --sample 20 --no-db      # skip the database step
+```
+
+The database step (`python load_to_db.py`) creates four tables in schema `validate`, using the account in `.env`
+(`DB_WRITE_USER` / `DB_WRITE_PASSWORD` override it): `landcover_types` and `landuse_types` (code, level,
+parent_code, name, description) and `record_landcover` and `record_landuse` (`record_id` is the primary key and a
+foreign key to `DB_SCHEMA.DB_TABLE(id)`, `ON DELETE CASCADE`; `codes`, `probabilities` and `l1_codes`..`l3_codes` are
+`text[]`). Records without a label are skipped, and loading again overwrites the row of a record. Descriptions
+come from an optional `type_descriptions.csv` (`taxonomy,code,description`) and are loaded with
+`python load_to_db.py types`. Check a run without writing: `python load_to_db.py results output/<run_id> --dry-run`.
+
+Steps of `pipeline.py` (what `run_all.sh` runs before the UI):
+
+1. fetch the records snapshot if `data/records_snapshot.parquet` is missing
+2. create a run and classify (saved scores are reused, see 9.2)
+3. export `landcover_results.csv` and `landuse_results.csv` to `output/<run_id>/` with the default thresholds
+4. create the tables if needed, load the class lists, validate the CSV rows and upsert them in one transaction
+5. open the UI (`run_ui.sh`)
+
+A row is rejected and counted in the summary when its id is not in the records table, its id appears twice, or it
+contains a code that is not in the class list. If the run is not finished (stopped or failed), steps 3 and 4 are
+skipped; continue with `--resume`.
 
 ---
 
@@ -457,6 +491,7 @@ another PC (`pack.py` includes `data/`).
 | `MISTRAL_API_KEY is not set` / HTTP 401 | Put a valid key in `.env` |
 | Run is slow | The Mistral rate limit is the cap, see [9](#9-speed-and-cost). Raise the tier, or keep `MISTRAL_PACK=5` |
 | HTTP 429 (rate limit) | Retried automatically; if it keeps happening, lower `MISTRAL_RPM` / `MISTRAL_TPM` |
+| Database step fails with `permission denied` | The `.env` account needs `CREATE` on schema `validate`; set `DB_WRITE_USER` / `DB_WRITE_PASSWORD` for an account that has it |
 | "Fetch from database" fails | Check the `DB_*` values in `.env`, the VPN/firewall, and `DB_SSLMODE` |
 | `streamlit: No such file` | Use `.venv/bin/python -m streamlit run ...` |
 | Port 8501 already in use | `PORT=8502 ./run_ui.sh`, or stop the other Streamlit instance |
@@ -475,6 +510,7 @@ simple_app.py              simple Streamlit UI (start, progress bar, results tab
 landclass/
   config.py                paths and defaults
   data.py                  read-only DB fetch → data/records_snapshot.parquet
+  dbload.py                creates the validate tables and loads the result CSVs
   taxonomy.py              loads the taxonomy CSVs and label_hints.csv
   engine.py                Mistral cascade classifier (Level 1 → 2 → 3)
   runner.py                background job (resumable)
@@ -489,10 +525,17 @@ example.env                settings template → copy to .env
 requirements.txt           Python dependencies
 setup.sh / setup.bat       one-time setup
 run_ui.sh / run_ui.bat     start the UI
+run_all.sh                 whole pipeline (classify → CSV → database), then the UI
+pipeline.py                the pipeline steps behind run_all.sh
+load_to_db.py              load CSV files into the database (types / results)
+type_descriptions.csv      optional class descriptions (taxonomy, code, description)
+plan_to_add.md             plan and ERD of the database tables
 data/                      record snapshot (created by "Fetch from database")
 data/cache/                saved scores, reused by every run
 runs/<run_id>/             per run: settings, probabilities, progress, log
 output/<run_id>/           exported CSV files
+
+Database (schema validate): landcover_types, landuse_types, record_landcover, record_landuse
 docs/                      README charts (docs/img) and docs/make_charts.py
 reports/                   test report (PDF), Claude verification CSV, build script
 ```
@@ -508,11 +551,68 @@ Diagrams are [Mermaid](https://mermaid.js.org/) and render on GitHub / GitLab. R
 external parties, rounded boxes are processes, cylinders are data stores. The charts in section 9.1
 are rebuilt with `.venv/bin/python docs/make_charts.py`.
 
+### Database tables (ERD)
+
+The full plan is in `plan_to_add.md`.
+
+```mermaid
+erDiagram
+    RECORDS ||--o| RECORD_LANDCOVER : "has (0..1)"
+    RECORDS ||--o| RECORD_LANDUSE   : "has (0..1)"
+    LANDCOVER_TYPES ||--o{ LANDCOVER_TYPES : "parent of"
+    LANDUSE_TYPES   ||--o{ LANDUSE_TYPES   : "parent of"
+    LANDCOVER_TYPES }o..o{ RECORD_LANDCOVER : "codes checked by loader"
+    LANDUSE_TYPES   }o..o{ RECORD_LANDUSE   : "codes checked by loader"
+
+    RECORDS {
+        uuid id PK "validate.records"
+        text identifier
+        text title
+        text abstract
+    }
+    RECORD_LANDCOVER {
+        uuid record_id PK,FK
+        text_array codes
+        text_array probabilities
+        text_array l1_codes
+        text_array l2_codes
+        text_array l3_codes
+        smallint n_labels
+        text run_id
+        timestamptz classified_at
+    }
+    RECORD_LANDUSE {
+        uuid record_id PK,FK
+        text_array codes
+        text_array probabilities
+        text_array l1_codes
+        text_array l2_codes
+        text_array l3_codes
+        smallint n_labels
+        text run_id
+        timestamptz classified_at
+    }
+    LANDCOVER_TYPES {
+        text code PK
+        smallint level
+        text parent_code FK
+        text name
+        text description
+    }
+    LANDUSE_TYPES {
+        text code PK
+        smallint level
+        text parent_code FK
+        text name
+        text description
+    }
+```
+
 ### Level 0: context
 
 ```mermaid
 flowchart LR
-    DB[(PostgreSQL<br/>public.records)]:::ext
+    DB[(PostgreSQL<br/>validate schema)]:::ext
     USER[User]:::ext
     MISTRAL[Mistral API]:::ext
     CLAUDE[Claude<br/>independent reviewer]:::ext
@@ -522,6 +622,7 @@ flowchart LR
     USER -- "labels, run settings,<br/>thresholds" --> SYS
     SYS -- "title + abstract + class list" --> MISTRAL
     MISTRAL -- "class probabilities,<br/>token usage" --> SYS
+    SYS -- "class tables + labels per record<br/>(4 new tables, only INSERT/UPSERT)" --> DB
     SYS -- "labelled CSVs, run report,<br/>charts, PDF" --> USER
     SYS -- "60 sample records<br/>(no Mistral labels)" --> CLAUDE
     CLAUDE -- "own level-1 labels" --> SYS
@@ -533,7 +634,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    DB[(PostgreSQL<br/>public.records)]:::ext
+    DB[(PostgreSQL<br/>validate.records)]:::ext
     USER[User]:::ext
     MISTRAL[Mistral API]:::ext
 
@@ -564,12 +665,13 @@ flowchart LR
     classDef ext fill:#eef3fb,stroke:#2a78d6,color:#0b0b0b
 ```
 
-### Level 1b: from scores to results (processes 5 to 7)
+### Level 1b: from scores to results (processes 5 to 8)
 
 ```mermaid
 flowchart LR
     USER[User]:::ext
     CLAUDE[Claude reviewer]:::ext
+    DB[(PostgreSQL<br/>validate schema)]:::ext
 
     D1[("D1 records_snapshot.parquet")]
     D3[("D3 runs/&lt;run_id&gt;/")]
@@ -579,8 +681,13 @@ flowchart LR
     P5(["5 Select labels + export<br/>export.py"])
     P6(["6 Run report<br/>metrics.py"])
     P7(["7 Verify with Claude"])
+    P8(["8 Load into database<br/>dbload.py, load_to_db.py"])
 
     D3 -- "scores" --> P5
+    D5 -- "*_results.csv" --> P8
+    P8 -- "class lists; rows that pass<br/>id + code checks (one transaction)" --> DB
+    DB -- "existing record ids<br/>(read-only check)" --> P8
+    P8 -- "loaded / skipped counts" --> USER
     USER -- "level thresholds" --> P5
     P5 --> D5
     P5 -- "tables, charts" --> USER
