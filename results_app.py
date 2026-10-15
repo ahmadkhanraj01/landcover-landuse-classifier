@@ -74,14 +74,15 @@ def class_order(run_dir: str, key: str, level: int) -> list[str]:
 def pie(counts: pd.Series, order: list[str]) -> alt.Chart:
     """Share of records per top class: first len(PALETTE) classes in taxonomy order, rest as Other."""
     named = [c for c in order if c in counts.index]
-    keep = named[:len(PALETTE)] if len(named) <= len(PALETTE) else \
-        [c for c in named if c in counts.nlargest(len(PALETTE) - 1).index]
+    top = counts.drop(NONE, errors="ignore").nlargest(len(PALETTE) - 1).index
+    keep = named if len(named) <= len(PALETTE) else [c for c in named if c in top]
     d = counts.rename(lambda c: c if c in keep or c == NONE else OTHER).groupby(level=0).sum()
     d = d.reset_index().set_axis(["class", "records"], axis=1)
     d["share"] = d["records"] / d["records"].sum()
     domain = [c for c in order if c in keep] + [c for c in (OTHER, NONE) if c in d["class"].values]
-    colors = PALETTE[:len(domain)]
-    colors = [GRAY.get(c, colors[i]) for i, c in enumerate(domain)]
+    # a level with <= 8 classes colors by taxonomy position, so a class keeps its color under any filter
+    slot = {c: i for i, c in enumerate(order if len(order) <= len(PALETTE) else keep)}
+    colors = [GRAY[c] if c in GRAY else PALETTE[slot[c]] for c in domain]
     d["sort"] = d["class"].map({c: i for i, c in enumerate(domain)})
     return alt.Chart(d).mark_arc(innerRadius=60, stroke="white", strokeWidth=2).encode(
         theta=alt.Theta("records:Q", stack=True),
@@ -146,8 +147,8 @@ with tab_charts:
                 continue
             none_n = int(df[f"{short} 1"].isna().sum())
             st.caption(f"{int(counts.drop(NONE, errors='ignore').sum()):,} classified · {none_n:,} with no class")
-            st.altair_chart(pie(counts, class_order(str(run_dir), key, level)), use_container_width=True)
-            st.altair_chart(bars(counts), use_container_width=True)
+            st.altair_chart(pie(counts, class_order(str(run_dir), key, level)), width="stretch")
+            st.altair_chart(bars(counts), width="stretch")
 
 tab_table.caption(f"{len(df):,} records · top {TOP_N} classes at level {level} · empty = no class scored above 0")
 
