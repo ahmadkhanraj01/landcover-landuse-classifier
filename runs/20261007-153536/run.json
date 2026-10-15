@@ -1,0 +1,22 @@
+{
+  "run_id": "20261007-153536",
+  "taxonomies": [
+    "landcover",
+    "landuse"
+  ],
+  "selection": {
+    "mode": "sample",
+    "n": 20,
+    "seed": 42,
+    "records": 20
+  },
+  "model": "mistral-small-latest",
+  "explore_threshold": 0.5,
+  "max_level": 3,
+  "snapshot": {
+    "fetched_at": "2026-10-02T10:19:13+00:00",
+    "rows": 25130,
+    "source": "135.181.133.189/msp-kh-dev public.records"
+  },
+  "created_at": "2026-10-07T15:35:36"
+}

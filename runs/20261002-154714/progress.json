@@ -1,0 +1,12 @@
+{
+  "status": "finished",
+  "done": 5,
+  "total": 5,
+  "updated_at": "2026-10-02T15:47:35",
+  "error": null,
+  "hardware": "NVIDIA GeForce GTX 1650 Ti, 4 GB \u00b7 cuda \u00b7 fp32 \u00b7 batch 4",
+  "started_at": "2026-10-02T15:47:24",
+  "rate": 0.48,
+  "eta_seconds": 0,
+  "batch_size": 4
+}

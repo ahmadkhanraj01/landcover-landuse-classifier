@@ -1,0 +1,152 @@
+taxonomy,code,level,parent_code,name,hint,enabled
+landcover,A,1,,Artificial land,"built-up and sealed surfaces: buildings, settlements, cities, roads, railways, industrial sites, greenhouses",True
+landcover,A10,2,A,Roofed built-up areas,,True
+landcover,A11,3,A10,Buildings with 1 to 3 floors,,True
+landcover,A12,3,A10,Buildings with more than 3 floors,,True
+landcover,A13,3,A10,Greenhouses,,True
+landcover,A20,2,A,Artificial non-built up areas,,True
+landcover,A21,3,A20,Non built-up area features,,True
+landcover,A22,3,A20,Non built-up linear features,,True
+landcover,A30,2,A,Other artificial areas,,True
+landcover,B,1,,Cropland,"agricultural fields with crops: arable land, cereals, maize, vegetables, fodder crops, orchards, vineyards, olive groves",True
+landcover,B10,2,B,Cereals,,True
+landcover,B11,3,B10,Common wheat,,True
+landcover,B12,3,B10,Durum wheat,,True
+landcover,B13,3,B10,Barley,,True
+landcover,B14,3,B10,Rye,,True
+landcover,B15,3,B10,Oats,,True
+landcover,B16,3,B10,Maize,,True
+landcover,B17,3,B10,Rice,,True
+landcover,B18,3,B10,Triticale,,True
+landcover,B19,3,B10,Other cereals,,True
+landcover,B20,2,B,Root crops,,True
+landcover,B21,3,B20,Potatoes,,True
+landcover,B22,3,B20,Sugar beet,,True
+landcover,B23,3,B20,Other root crops,,True
+landcover,B30,2,B,Non-permanent industrial crops,,True
+landcover,B31,3,B30,Sunflower,,True
+landcover,B32,3,B30,Rape and turnip rape,,True
+landcover,B33,3,B30,Soya,,True
+landcover,B34,3,B30,Cotton,,True
+landcover,B35,3,B30,Other fibre and oleaginous crops,,True
+landcover,B36,3,B30,Tobacco,,True
+landcover,B37,3,B30,Other non-permanent industrial crops,,True
+landcover,B40,2,B,"Dry pulses, vegetables and flowers",,True
+landcover,B41,3,B40,Dry pulses,,True
+landcover,B42,3,B40,Tomatoes,,True
+landcover,B43,3,B40,Other fresh vegetables,,True
+landcover,B44,3,B40,Floriculture and ornamental plants,,True
+landcover,B45,3,B40,Strawberries,,True
+landcover,B50,2,B,Fodder crops,,True
+landcover,B51,3,B50,Clovers,,True
+landcover,B52,3,B50,Lucerne,,True
+landcover,B53,3,B50,Other leguminous and mixtures for fodder,,True
+landcover,B54,3,B50,Mix of cereals,,True
+landcover,B55,3,B50,Temporary grassland,,True
+landcover,B70,2,B,Permanent crops: fruit trees,,True
+landcover,B71,3,B70,Apple fruit,,True
+landcover,B72,3,B70,Pear fruit,,True
+landcover,B73,3,B70,Cherry fruit,,True
+landcover,B74,3,B70,Nuts trees,,True
+landcover,B75,3,B70,Other fruit trees and berries,,True
+landcover,B76,3,B70,Oranges,,True
+landcover,B77,3,B70,Other citrus fruit,,True
+landcover,B80,2,B,Other permanent crops,,True
+landcover,B81,3,B80,Olive groves,,True
+landcover,B82,3,B80,Vineyards,,True
+landcover,B83,3,B80,Nurseries,,True
+landcover,B84,3,B80,Permanent industrial crops,,True
+landcover,Bx0,2,B,Cropland (photo-interpretation only),,False
+landcover,Bx1,3,Bx0,Arable land (only PI),,False
+landcover,Bx2,3,Bx0,Permanent crops (only PI),,False
+landcover,C,1,,Woodland,"forest and woodland: broadleaved, coniferous or mixed tree stands",True
+landcover,C10,2,C,Broadleaved woodland,,True
+landcover,C20,2,C,Coniferous woodland,,True
+landcover,C21,3,C20,Spruce dominated coniferous woodland,,True
+landcover,C22,3,C20,Pine dominated coniferous woodland,,True
+landcover,C23,3,C20,Other coniferous woodland,,True
+landcover,C30,2,C,Mixed woodland,,True
+landcover,C31,3,C30,Spruce dominated mixed woodland,,True
+landcover,C32,3,C30,Pine dominated mixed woodland,,True
+landcover,C33,3,C30,Other mixed woodland,,True
+landcover,D,1,,Shrubland,"shrubs and scrub vegetation: heathland, maquis, garrigue, bushland",True
+landcover,D10,2,D,Shrubland with sparse tree cover,,True
+landcover,D20,2,D,Shrubland without tree cover,,True
+landcover,E,1,,Grassland,"grass-dominated vegetation: pastures, meadows, rangelands, grazed grassland, steppe, savanna",True
+landcover,E10,2,E,Grassland with sparse tree/shrub cover,,True
+landcover,E20,2,E,Grassland without tree/shrub cover,,True
+landcover,E30,2,E,Spontaneously re-vegetated surfaces,,True
+landcover,F,1,,Bareland,"land without vegetation: bare rock, scree, sand dunes, beaches, deserts, lichens and moss",True
+landcover,F10,2,F,Rocks and stones,,True
+landcover,F20,2,F,Sand,,True
+landcover,F30,2,F,Lichens and moss,,True
+landcover,F40,2,F,Other bare soil,,True
+landcover,G,1,,Water,"open water: rivers, streams, lakes, reservoirs, estuaries, lagoons, sea and ocean",True
+landcover,G10,2,G,Inland water bodies,,True
+landcover,G11,3,G10,Inland fresh water bodies,,True
+landcover,G12,3,G10,Inland salty water bodies,,True
+landcover,G20,2,G,Inland running water,,True
+landcover,G21,3,G20,Inland fresh running water,,True
+landcover,G22,3,G20,Inland salty running water,,True
+landcover,G30,2,G,Transitional water bodies,,True
+landcover,G40,2,G,Sea and ocean,,True
+landcover,H,1,,Wetlands,"wetlands: marshes, fens, peatlands, bogs, salt marshes, intertidal mudflats, salines",True
+landcover,H10,2,H,Inland wetlands,,True
+landcover,H11,3,H10,Inland marshes,,True
+landcover,H12,3,H10,Peatbogs,,True
+landcover,H20,2,H,Coastal wetlands,,True
+landcover,H21,3,H20,Salt marshes,,True
+landcover,H22,3,H20,Salines,,True
+landcover,H23,3,H20,Intertidal flats,,True
+landuse,U1,1,,Primary sector,"production from land: agriculture, farming, livestock grazing, forestry, timber, fishing, aquaculture, mining and quarrying",True
+landuse,U11,2,U1,Agriculture,,True
+landuse,U111,3,U11,Agriculture (excluding fallow land and kitchen gardens),,True
+landuse,U112,3,U11,Fallow land,,True
+landuse,U113,3,U11,Kitchen gardens,,True
+landuse,U12,2,U1,Forestry,,True
+landuse,U120,3,U12,Forestry,,True
+landuse,U13,2,U1,Fishing,,True
+landuse,U130,3,U13,Fishing,,True
+landuse,U14,2,U1,Mining and quarrying,,True
+landuse,U140,3,U14,Mining and quarrying,,True
+landuse,U15,2,U1,Other primary production,,True
+landuse,U150,3,U15,Other primary production,,True
+landuse,U2,1,,Secondary sector,"industry: energy production, power plants, manufacturing, industrial facilities",True
+landuse,U21,2,U2,Energy production,,True
+landuse,U210,3,U21,Energy production,,True
+landuse,U22,2,U2,Industry and manufacturing,,True
+landuse,U220,3,U22,Industry and manufacturing,,True
+landuse,U3,1,,Tertiary sector,"services and infrastructure: transport, utilities, water and waste treatment, construction, commerce, community services, recreation, residential and urban areas",True
+landuse,U31,2,U3,"Transport, communication networks, storage, protective works",,True
+landuse,U311,3,U31,Railway transport,,True
+landuse,U312,3,U31,Road transport,,True
+landuse,U313,3,U31,Water transport,,True
+landuse,U314,3,U31,Air transport,,True
+landuse,U315,3,U31,Transport via pipelines,,True
+landuse,U316,3,U31,Telecommunications,,True
+landuse,U317,3,U31,Logistics and storage,,True
+landuse,U318,3,U31,Protection infrastructures,,True
+landuse,U319,3,U31,"Electricity, gas and thermal power distribution",,True
+landuse,U32,2,U3,Water and waste treatment,,True
+landuse,U321,3,U32,Water supply and treatment,,True
+landuse,U322,3,U32,Waste treatment,,True
+landuse,U33,2,U3,Construction,,True
+landuse,U330,3,U33,Construction,,True
+landuse,U34,2,U3,"Commerce, finance, business",,True
+landuse,U341,3,U34,Commerce,,True
+landuse,U342,3,U34,"Financial, professional and information services",,True
+landuse,U35,2,U3,Community services,,True
+landuse,U350,3,U35,Community services,,True
+landuse,U36,2,U3,"Recreation, leisure, sport",,True
+landuse,U361,3,U36,"Amenities, museum, leisure (e.g. parks, botanical gardens)",,True
+landuse,U362,3,U36,Sport,,True
+landuse,U37,2,U3,Residential,,True
+landuse,U370,3,U37,Residential,,True
+landuse,U4,1,,Unused,"land not in use: abandoned farmland, abandoned industrial or residential sites, natural or semi-natural areas without economic use",True
+landuse,U41,2,U4,Abandoned areas,,True
+landuse,U411,3,U41,Abandoned industrial areas,,True
+landuse,U413,3,U41,Abandoned transport areas,,True
+landuse,U414,3,U41,Abandoned residential areas,,True
+landuse,U415,3,U41,Other abandoned areas,,True
+landuse,U42,2,U4,Semi-natural and natural areas not in use,,True
+landuse,U420,3,U42,Semi-natural and natural areas not in use,,True

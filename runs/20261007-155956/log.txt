@@ -1,0 +1,4 @@
+[15:59:57] 10 records to do
+[15:59:57] Mistral API · mistral-small-latest · 8 parallel
+[16:00:15] 10/10  0.53 rec/s  $0.006
+finished

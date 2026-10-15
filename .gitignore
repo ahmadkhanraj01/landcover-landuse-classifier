@@ -8,6 +8,6 @@ __pycache__/
 
 # Large / local data: recreate with "Fetch from database" and setup
 data/
-runs/
+# runs/
 output/
 *.zip

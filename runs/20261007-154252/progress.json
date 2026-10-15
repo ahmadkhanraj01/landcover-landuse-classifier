@@ -1,0 +1,15 @@
+{
+  "status": "finished",
+  "done": 100,
+  "total": 100,
+  "updated_at": "2026-10-07T15:46:48",
+  "error": null,
+  "engine": "Mistral API \u00b7 mistral-small-latest \u00b7 8 parallel",
+  "started_at": "2026-10-07T15:42:52",
+  "rate": 0.42,
+  "eta_seconds": 0,
+  "calls": 423,
+  "input_tokens": 334114,
+  "output_tokens": 17858,
+  "cost_usd": 0.0608
+}

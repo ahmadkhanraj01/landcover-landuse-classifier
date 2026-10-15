@@ -1,0 +1,11 @@
+{
+  "status": "finished",
+  "done": 10,
+  "total": 10,
+  "updated_at": "2026-10-02T15:40:33",
+  "error": null,
+  "started_at": "2026-10-02T15:40:13",
+  "rate": 0.49,
+  "eta_seconds": 0,
+  "batch_size": 4
+}

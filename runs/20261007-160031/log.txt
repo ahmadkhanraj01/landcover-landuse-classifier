@@ -1,0 +1,7 @@
+[16:00:31] 25129 records to do
+[16:00:31] Mistral API · mistral-small-latest · 8 parallel
+[16:02:45] 64/25129  0.48 rec/s  $0.028
+[16:05:10] 128/25129  0.46 rec/s  $0.058
+[16:07:38] 192/25129  0.45 rec/s  $0.088
+[16:10:15] 256/25129  0.44 rec/s  $0.131
+stopped by request
